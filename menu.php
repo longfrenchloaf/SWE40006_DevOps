@@ -29,7 +29,7 @@
     $discount_percentage = 50;
     ?>
 
-    <h2>Café Tralalelo Tralala</h2>
+    <h2>Cafe Tralalelo Tralala</h2>
 
     <div class="container"> <!-- Wrap content in the container -->
         <form action="cart.php" method="post" onsubmit="return validateInput(event)">
