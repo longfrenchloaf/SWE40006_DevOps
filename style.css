@@ -1,0 +1,583 @@
+/* --- Global Styles --- */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: #D7CEC7; /* Light muted warm gray background */
+    color: #565656; /* Medium dark gray text for readability */
+    line-height: 1.6;
+}
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Roboto:wght@400;700&display=swap');
+
+/* --- Headings --- */
+h2, h3 {
+    text-align: center;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    font-family: 'Merriweather', serif;
+    font-weight: 700;
+    color: #76323F; /* Deep burgundy for headings */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    font-size: 2.8em;
+}
+
+h3 {
+    font-size: 2em;
+    color: #565656; /* Match body text color for subheading */
+}
+
+/* --- Layout Container --- */
+.container {
+    max-width: 960px; /* Slightly wider container for grid layout */
+    width: 95%;
+    margin: 30px auto;
+    padding: 30px;
+    background-color: #fff; /* White background for container */
+    border-radius: 12px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+    color: #333; /* Dark text for container content */
+}
+
+/* --- Table Styling (Primarily for Cart Summary) --- */
+/* Only apply these styles to tables that are NOT part of the menu layout */
+.container table:not(.menu-layout table) { /* Ensure table styles don't affect menu grid item content */
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin-top: 25px;
+    border: 1px solid #D7CEC7; /* Light muted warm gray border */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    background-color: #fff;
+}
+
+.container table:not(.menu-layout table) thead th {
+    background-color: #76323F; /* Deep burgundy header background */
+    color: #C09F80; /* Muted gold for header text */
+    padding: 15px 12px;
+    font-size: 1.2em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.container table:not(.menu-layout table) th,
+.container table:not(.menu-layout table) td {
+    padding: 15px;
+    text-align: center;
+}
+
+.container table:not(.menu-layout table) tbody tr {
+    border-bottom: 1px solid #f5f5f5;
+    transition: background-color 0.2s ease;
+}
+
+.container table:not(.menu-layout table) tbody tr:last-child {
+    border-bottom: none;
+}
+
+.container table:not(.menu-layout table) tbody tr:nth-child(even) {
+    background-color: #f9f9f9; /* Standard light gray stripe */
+}
+
+.container table:not(.menu-layout table) tbody tr:hover {
+    background-color: #f0f0f0; /* Light gray hover */
+}
+
+.container table:not(.menu-layout table) td {
+    font-size: 1.1em;
+    color: #555; /* Darker text for body cells */
+}
+
+/* Consistent Image Size for Table (Cart Summary) */
+.container table:not(.menu-layout table) img {
+    display: block;
+    margin: 0 auto;
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid #D7CEC7;
+    padding: 4px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Specific Column Alignment for Table (Cart Summary) */
+.container table:not(.menu-layout table) td.text-left,
+.container table:not(.menu-layout table) th.text-left { text-align: left; }
+.container table:not(.menu-layout table) td.text-right,
+.container table:not(.menu-layout table) th.text-right { text-align: right; }
+.container table:not(.menu-layout table) td.text-center,
+.container table:not(.menu-layout table) th.text-center { text-align: center; }
+
+/* Make item name bolder and distinct in Table (Cart Summary) */
+.container table:not(.menu-layout table) td.text-left {
+    font-weight: bold;
+    color: #76323F;
+}
+
+
+/* --- Menu Layout (Grid) --- */
+.menu-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive 2+ columns */
+    gap: 25px; /* Space between grid items */
+    margin-top: 25px;
+}
+
+.menu-item {
+    background-color: #fff; /* White background for each item card */
+    border: 1px solid #d7ccc8; /* Light warm gray border */
+    border-radius: 10px; /* Rounded corners */
+    padding: 20px; /* Padding inside the card */
+    text-align: center; /* Center contents */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+    display: flex; /* Use flexbox for internal layout of item content */
+    flex-direction: column; /* Stack content vertically */
+    align-items: center; /* Center items horizontally */
+    transition: transform 0.2s ease, box-shadow 0.2s ease; /* Hover effect */
+}
+
+.menu-item:hover {
+    transform: translateY(-5px); /* Lift effect on hover */
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.menu-item img {
+    width: 120px; /* Larger images in grid */
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%; /* Round images */
+    border: 3px solid #C09F80; /* Muted gold border */
+    padding: 5px; /* Padding inside border */
+    background-color: #fff;
+    margin-bottom: 15px; /* Space below image */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item h4 { /* Using h4 for item name within the card */
+    font-family: 'Merriweather', serif;
+    font-size: 1.4em; /* Larger name */
+    color: #76323F; /* Deep burgundy */
+    margin: 0 0 5px 0; /* Adjust margins */
+    font-weight: bold;
+}
+
+.menu-item .price { /* Wrapper for price */
+    font-size: 1.1em;
+    color: #565656; /* Dark gray */
+    margin-bottom: 15px; /* Space below price */
+}
+
+.menu-item .quantity-input { /* Wrapper for input and label/text */
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between label and input */
+    margin-top: auto; /* Push quantity to the bottom of the flex container */
+}
+
+.menu-item .quantity-input label { /* Optional label for quantity */
+    font-size: 1em;
+    color: #565656;
+    font-weight: bold;
+}
+
+.menu-item input[type="number"] {
+    width: 60px; /* Fixed width */
+    padding: 8px; /* Adjusted padding */
+    border: 1px solid #d7ccc8;
+    border-radius: 4px; /* Slightly less rounded input */
+    text-align: center;
+    font-size: 1em;
+    background-color: #f9f9f9; /* Light background */
+    color: #333;
+    -moz-appearance: textfield;
+}
+
+.menu-item input[type="number"]::-webkit-outer-spin-button,
+.menu-item input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.menu-item input[type="number"]:focus {
+    border-color: #C09F80;
+    outline: none;
+    box-shadow: 0 0 6px rgba(192, 159, 128, 0.6);
+}
+
+
+/* --- Discount Checkbox Section --- */
+.discount-container {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #ffecb3;
+    border: 2px dashed #C09F80;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 1.2em;
+    color: #565656;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.discount-container label {
+    font-weight: bold;
+    cursor: pointer;
+    color: #76323F;
+}
+
+.discount-container input[type="checkbox"] {
+     transform: scale(1.3);
+     margin-right: 5px;
+     accent-color: #76323F;
+}
+
+
+/* --- Button Styling (Submit & Back Button) --- */
+/* Submit button (Full Width) */
+button[type="submit"] {
+    display: block;
+    width: 100%;
+    padding: 16px 25px;
+    margin-top: 30px;
+    background-color: #76323F; /* Deep burgundy button */
+    color: white;
+    font-size: 1.4em;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+button[type="submit"]:hover {
+    background-color: #56252d; /* Darker burgundy on hover */
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+}
+
+button[type="submit"]:active {
+    transform: scale(0.98);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Back to Menu Button (Standard Size) */
+.back-button {
+    display: inline-block; /* Allow size based on content */
+    padding: 12px 25px; /* Standard padding */
+    margin-top: 30px;
+    background-color: #C09F80; /* Muted gold button */
+    color: #76323F; /* Deep burgundy text */
+    font-size: 1.1em; /* Smaller font than submit */
+    font-weight: bold;
+    border: none;
+    border-radius: 6px; /* Slightly less rounded */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15); /* Lighter shadow */
+    text-decoration: none;
+    text-align: center;
+    /* Positioning */
+    float: none; /* Ensure no float */
+    /* Optional: Center the button below summary if desired */
+    /* display: block; margin: 30px auto; */
+}
+
+.back-button:hover {
+    background-color: #a18f75; /* Darker muted gold */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.back-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+/* --- Cart Page Summary --- */
+.total-summary {
+    margin-top: 35px;
+    padding: 30px;
+    background-color: #f0f0f0;
+    border: 2px solid #D7CEC7;
+    border-radius: 10px;
+    text-align: right;
+    font-size: 1.2em;
+    line-height: 2;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    color: #333;
+}
+
+.total-summary div {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 20px;
+}
+
+.total-summary strong {
+    font-weight: bold;
+    color: #565656;
+    flex-basis: 220px;
+    text-align: left;
+    flex-shrink: 0;
+}
+.total-summary span {
+    flex-grow: 1;
+    text-align: right;
+    color: #333;
+}
+
+
+.total-summary .final-total {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #76323F;
+    border-top: 2px solid #C09F80;
+    padding-top: 20px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 20px;
+}
+.total-summary .final-total strong {
+    color: #565656;
+    text-align: left;
+    flex-basis: 220px;
+}
+.total-summary .final-total span {
+    color: #76323F;
+    flex-grow: 1;
+    text-align: right;
+}
+
+
+/* --- Empty Cart Message --- */
+.container p {
+    text-align: center;
+    font-size: 1.3em;
+    color: #76323F;
+    padding: 30px;
+}
+
+
+/* --- Responsive Styles --- */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+        width: 98%;
+        margin: 20px auto;
+    }
+
+    h2 { font-size: 2.2em; margin-top: 20px; margin-bottom: 10px; }
+    h3 { font-size: 1.6em; margin-bottom: 10px; }
+
+    /* Table Styling for Cart Summary (Mobile) */
+    .container table:not(.menu-layout table) {
+        margin-top: 20px;
+    }
+
+    .container table:not(.menu-layout table) tr {
+        border: 1px solid #D7CEC7;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    .container table:not(.menu-layout table) tbody tr:nth-child(even) {
+         background-color: #f9f9f9;
+    }
+
+    .container table:not(.menu-layout table) td {
+        border: none;
+        border-bottom: 1px solid #f5f5f5;
+        position: relative;
+        padding: 12px 15px 12px 50% !important;
+        text-align: right !important;
+        font-size: 1em;
+    }
+
+    .container table:not(.menu-layout table) td:last-child {
+        border-bottom: 0;
+    }
+
+    .container table:not(.menu-layout table) td:before {
+        content: attr(data-label);
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 45%;
+        padding: 12px;
+        font-weight: bold;
+        text-align: left !important;
+        background-color: #eee;
+        color: #565656;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        font-size: 1em;
+    }
+
+    /* Specific mobile cell overrides for Cart Summary Table */
+    .container table:not(.menu-layout table) td.text-center { text-align: right !important; }
+    .container table:not(.menu-layout table) td.text-left { text-align: right !important; }
+    .container table:not(.menu-layout table) td.text-left:before { text-align: left !important; color: #76323F; }
+    .container table:not(.menu-layout table) td.text-right { text-align: right !important; }
+
+    /* Adjust image cell in Cart Summary Table (Mobile) */
+    .container table:not(.menu-layout table) td:first-child {
+         text-align: center !important;
+         padding: 12px !important;
+    }
+    .container table:not(.menu-layout table) td:first-child img {
+        margin: 10px auto;
+        width: 60px;
+        height: 60px;
+        border-color: #D7CEC7;
+    }
+     .container table:not(.menu-layout table) td:first-child:before {
+         content: attr(data-label);
+         position: static;
+         display: block;
+         width: 100%;
+         padding: 8px 12px;
+         text-align: center !important;
+         background-color: #D7CEC7;
+         color: #565656;
+         font-size: 0.9em;
+         font-weight: bold;
+         height: auto;
+         box-sizing: border-box;
+     }
+
+
+    /* Menu Layout (Grid) Mobile */
+    .menu-layout {
+        grid-template-columns: 1fr; /* Single column on mobile */
+        gap: 15px; /* Less space */
+        margin-top: 20px;
+    }
+
+    .menu-item {
+        padding: 15px; /* Less padding */
+        flex-direction: row; /* Arrange content horizontally */
+        align-items: center; /* Vertically center items */
+        text-align: left; /* Align text left */
+        gap: 15px; /* Space between image and text */
+    }
+
+    .menu-item img {
+        width: 80px; /* Smaller image on mobile item */
+        height: 80px;
+        margin-bottom: 0; /* Remove bottom margin */
+        flex-shrink: 0; /* Prevent image from shrinking */
+    }
+
+    .menu-item .item-details { /* Add a div to wrap text/price/input */
+         display: flex;
+         flex-direction: column;
+         flex-grow: 1; /* Allow details to take up space */
+    }
+
+    .menu-item h4 {
+        font-size: 1.2em;
+        margin: 0 0 3px 0;
+    }
+
+    .menu-item .price {
+        font-size: 1em;
+        margin-bottom: 8px;
+    }
+
+    .menu-item .quantity-input {
+        margin-top: 0; /* Remove auto margin */
+        align-self: flex-end; /* Align input to the right/bottom */
+        margin-left: auto; /* Push to the right */
+    }
+
+
+    /* Discount Container Mobile */
+    .discount-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 1.1em;
+        padding: 15px;
+    }
+     .discount-container input[type="checkbox"] {
+         transform: scale(1.1);
+     }
+
+    /* Button Styles Mobile */
+    button[type="submit"],
+    .back-button {
+        float: none;
+        width: 100%;
+        font-size: 1.2em;
+        padding: 14px 20px;
+        margin-top: 20px;
+    }
+
+    /* Total Summary Mobile */
+    .total-summary {
+        text-align: left;
+        padding: 20px;
+        margin-top: 25px;
+        font-size: 1.1em;
+    }
+    .total-summary div {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    .total-summary strong {
+        width: auto;
+        flex-basis: auto;
+        margin-right: 0;
+        text-align: left;
+        color: #565656;
+    }
+    .total-summary span {
+        text-align: left;
+        color: #333;
+    }
+
+    .total-summary .final-total {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        font-size: 1.5em;
+        padding-top: 15px;
+        margin-top: 15px;
+    }
+    .total-summary .final-total strong {
+         text-align: left;
+         color: #76323F;
+    }
+     .total-summary .final-total span {
+         text-align: left;
+         color: #76323F;
+     }
+
+
+    /* SweetAlert2 custom styles (ensure they override defaults) */
+    .swal2-container {
+        z-index: 99999 !important;
+    }
+}
