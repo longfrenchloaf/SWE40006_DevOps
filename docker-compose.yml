@@ -14,7 +14,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   backend:
-    build: .
+    build: ./backend
     container_name: billing_backend
     depends_on:
       - db
@@ -24,10 +24,18 @@ services:
       DB_USER: admin
       DB_PASSWORD: admin123
     volumes:
-      - .:/app
+      - ./backend:/app
     ports:
       - "5000:5000"
     command: ["python", "billing.py"]
+
+  frontend:
+    build: ./templates
+    container_name: html_frontend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
