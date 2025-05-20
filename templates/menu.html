@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="description" content="Cafe Menu"/>
+    <meta name="keywords" content="cafe, menu, coffee, tea, matcha, pastry, online order"/>
+    <meta name="author" content="Your Name"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Cozy Cafe Menu</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <h2>Cafe Tralalelo Tralala</h2>
+
+    <div class="container">
+        <form onsubmit="return validateAndSend(event)">
+            <div class="menu-layout" id="menu-container">
+                <!-- Items will be injected here dynamically -->
+            </div>
+
+            <div class="discount-container">
+                <input type="checkbox" id="apply_discount" value="yes">
+                <label for="apply_discount">Apply 50% Special Discount</label>
+            </div>
+
+            <button type="submit">Add to Cart</button>
+        </form>
+    </div>
+
+    <script>
+    async function loadMenu() {
+        try {
+            const response = await fetch("http://localhost:5000/menu");
+            const items = await response.json();
+            const container = document.getElementById("menu-container");
+
+            items.forEach((item, index) => {
+                const itemHTML = `
+                <div class="menu-item">
+                    <img src="${item.image}" alt="${item.name}">
+                    <div class="item-details">
+                        <h4>${item.name}</h4>
+                        <p class="price">RM${item.price.toFixed(2)}</p>
+                        <div class="quantity-input">
+                            <label for="qty_${index}">Quantity:</label>
+                            <input type="number" id="qty_${index}" data-name="${item.name}" data-price="${item.price}" value="0" min="0">
+                        </div>
+                    </div>
+                </div>`;
+                container.insertAdjacentHTML('beforeend', itemHTML);
+            });
+        } catch (err) {
+            console.error("Failed to load menu:", err);
+            Swal.fire("Error", "Unable to load menu items.", "error");
+        }
+    }
+
+    async function validateInput() {
+        const inputs = document.querySelectorAll('input[type="number"]');
+        const invalidFields = [];
+        const invalidNames = [];
+        let hasQuantity = false;
+
+        for (let input of inputs) {
+            const val = input.value.trim();
+            const quantity = parseInt(val, 10);
+
+            if (val !== "" && (!/^\d+$/.test(val) || quantity < 0)) {
+                invalidFields.push(input);
+                invalidNames.push(input.dataset.name || "Unknown");
+            }
+
+            if (quantity > 0) hasQuantity = true;
+        }
+
+        if (invalidFields.length > 0) {
+            const list = invalidNames.join(", ");
+            const result = await Swal.fire({
+                title: "Invalid Input",
+                html: `<p>Invalid quantities for: <strong>${list}</strong></p>Reset to 0 and continue?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, reset",
+                cancelButtonText: "No, fix manually"
+            });
+
+            if (result.isConfirmed) {
+                invalidFields.forEach(input => input.value = "0");
+                return true;
+            } else {
+                invalidFields.forEach(input => input.style.borderColor = 'red');
+                return false;
+            }
+        }
+
+        if (!hasQuantity) {
+            Swal.fire("Empty Cart", "Please select at least one item.", "info");
+            return false;
+        }
+
+        return true;
+    }
+
+    async function validateAndSend(event) {
+        event.preventDefault();
+        const valid = await validateInput();
+        if (!valid) return;
+
+        const inputs = document.querySelectorAll('input[type="number"]');
+        const items = [];
+
+        inputs.forEach(input => {
+            const qty = parseInt(input.value);
+            if (qty > 0) {
+                items.push({
+                    name: input.dataset.name,
+                    qty: qty,
+                    price: parseFloat(input.dataset.price),
+                    image: input.closest('.menu-item').querySelector('img').src
+                });
+            }
+        });
+
+        const applyDiscount = document.getElementById("apply_discount").checked;
+
+        try {
+            const response = await fetch("http://localhost:5000/billing", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ items, apply_discount: applyDiscount })
+            });
+            const result = await response.json();
+            Swal.fire("Order Summary", `Your total is <strong>RM ${result.total.toFixed(2)}</strong>.`, "success")
+                .then(() => {
+                    localStorage.setItem('cart', JSON.stringify(items));
+                    localStorage.setItem('apply_discount', applyDiscount ? 'yes' : 'no');
+                    window.location.href = "cart.html";
+                });
+        } catch (err) {
+            console.error("Error submitting order:", err);
+            Swal.fire("Error", "Failed to process your order.", "error");
+        }
+    }
+
+    window.onload = loadMenu;
+    </script>
+</body>
+</html>
