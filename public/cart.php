@@ -14,14 +14,14 @@
     <?php
     // Define menu items (must match menu.php) - CAFE MENU & NEW PRICES/IMAGES
      $items = [
-        ['id' => 'latte', 'name' => 'Latte', 'price' => 8.00, 'image' => 'Latte.jpg'],
-        ['id' => 'cappuccino', 'name' => 'Cappuccino', 'price' => 8.00, 'image' => 'Cappuccino.jpg'],
-        ['id' => 'matchalatte', 'name' => 'Matcha Latte', 'price' => 10.00, 'image' => 'MatchaLatte.jpg'],
-        ['id' => 'icedamericano', 'name' => 'Iced Americano', 'price' => 7.00, 'image' => 'IcedAmericano.jpg'],
-        ['id' => 'hotchocolate', 'name' => 'Hot Chocolate', 'price' => 7.50, 'image' => 'HotChocolate.jpg'],
-        ['id' => 'croissant', 'name' => 'Butter Croissant', 'price' => 5.00, 'image' => 'Croissant.jpg'],
-        ['id' => 'blueberrymuffin', 'name' => 'Blueberry Muffin', 'price' => 6.50, 'image' => 'BlueberryMuffin.jpg'],
-        ['id' => 'icedpeachtea', 'name' => 'Iced Peach Tea', 'price' => 5.50, 'image' => 'IcedPeachTea.jpg'],
+        ['id' => 'latte', 'name' => 'Latte', 'price' => 8.00, 'image' => 'images/Latte.jpg'],
+        ['id' => 'cappuccino', 'name' => 'Cappuccino', 'price' => 8.00, 'image' => 'images/Cappuccino.jpg'],
+        ['id' => 'matchalatte', 'name' => 'Matcha Latte', 'price' => 10.00, 'image' => 'images/MatchaLatte.jpg'],
+        ['id' => 'icedamericano', 'name' => 'Iced Americano', 'price' => 7.00, 'image' => 'images/IcedAmericano.jpg'],
+        ['id' => 'hotchocolate', 'name' => 'Hot Chocolate', 'price' => 7.50, 'image' => 'images/HotChocolate.jpg'],
+        ['id' => 'croissant', 'name' => 'Butter Croissant', 'price' => 5.00, 'image' => 'images/Croissant.jpg'],
+        ['id' => 'blueberrymuffin', 'name' => 'Blueberry Muffin', 'price' => 6.50, 'image' => 'images/BlueberryMuffin.jpg'],
+        ['id' => 'icedpeachtea', 'name' => 'Iced Peach Tea', 'price' => 5.50, 'image' => 'images/IcedPeachTea.jpg'],
     ];
 
     // Discount and SST percentages
