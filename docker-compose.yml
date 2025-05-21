@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: my_postgres
+    environment:
+      POSTGRES_DB: cafe
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: billing_backend
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_NAME: cafe
+      DB_USER: admin
+      DB_PASSWORD: admin123
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5000:5000"
+    command: ["python", "billing.py"]
+
+  frontend:
+    build: ./templates
+    container_name: html_frontend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

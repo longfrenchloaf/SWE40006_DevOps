@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="description" content="Cafe Order Summary"/>
+    <meta name="keywords" content="cafe, order, summary, bill, coffee, tea, matcha"/>
+    <meta name="author" content="Your Name"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafe Order Summary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+    <h2>Order Summary</h2>
+    <div class="container">
+        <table class="cart-table" id="order-table">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th class="text-left">Name</th>
+                    <th class="text-right">Price (RM)</th>
+                    <th>Quantity</th>
+                    <th class="text-right">Subtotal (RM)</th>
+                </tr>
+            </thead>
+            <tbody id="order-items-body">
+                <!-- JS will insert rows here -->
+            </tbody>
+        </table>
+
+        <div class="total-summary" id="total-summary">
+            <!-- JS will insert totals here -->
+        </div>
+
+        <a href="/" class="back-button">Go Back to Menu</a>
+    </div>
+
+    <script>
+        // Example: get order data from localStorage (or you can use URL query params or other methods)
+        // You must make sure menu.html saves the cart to localStorage or passes order data here.
+
+        // Sample cart data format: [{id, name, price, image, quantity}]
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+        // Whether discount checkbox was selected (also from localStorage or query param)
+        const applyDiscount = localStorage.getItem('apply_discount') === 'yes';
+
+        if (cart.length === 0) {
+            document.querySelector('.container').innerHTML = '<p>Your cart is empty. Please add items from the <a href="menu.html">menu</a>.</p>';
+        } else {
+            // Prepare payload for backend billing API
+            const itemsForApi = cart.map(item => ({
+                price: item.price,
+                qty: item.qty
+            }));
+
+            fetch('/billing', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    items: itemsForApi,
+                    apply_discount: applyDiscount
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('order-items-body');
+                tbody.innerHTML = ''; // clear existing rows
+                
+                let subtotalBeforeDiscount = 0;
+                cart.forEach(item => {
+                    const subtotal = item.price * item.qty;
+                    subtotalBeforeDiscount += subtotal;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><img src="${item.image}" alt="${item.name}"></td>
+                        <td class="text-left">${item.name}</td>
+                        <td class="text-right">${item.price.toFixed(2)}</td>
+                        <td>${item.qty}</td>
+                        <td class="text-right">${subtotal.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                const discountPercentage = 50;
+                const sstPercentage = 6;
+
+                // Calculate discount amount
+                const discountAmount = applyDiscount ? subtotalBeforeDiscount * (discountPercentage / 100) : 0;
+                const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
+                const sstAmount = subtotalAfterDiscount * (sstPercentage / 100);
+                const finalTotal = data.total + sstAmount;
+
+                // Render totals
+                const totalSummary = document.getElementById('total-summary');
+                totalSummary.innerHTML = `
+                    <div><strong>Subtotal:</strong> <span>RM${subtotalBeforeDiscount.toFixed(2)}</span></div>
+                    ${applyDiscount ? `
+                        <div><strong>Discount (${discountPercentage}%):</strong> <span>-RM${discountAmount.toFixed(2)}</span></div>
+                        <div><strong>Subtotal (after discount):</strong> <span>RM${subtotalAfterDiscount.toFixed(2)}</span></div>
+                    ` : ''}
+                    <div><strong>SST (${sstPercentage}%):</strong> <span>RM${sstAmount.toFixed(2)}</span></div>
+                    <div class="final-total"><strong>Total to Pay:</strong> <span>RM${finalTotal.toFixed(2)}</span></div>
+                `;
+            })
+            .catch(err => {
+                console.error('Error fetching billing info:', err);
+                document.querySelector('.container').innerHTML = '<p>Failed to load billing info. Please try again.</p>';
+            });
+        }
+    </script>
+</body>
+</html>
