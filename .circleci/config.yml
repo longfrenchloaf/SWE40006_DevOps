@@ -1,17 +1,47 @@
 version: 2.1
 
-jobs:
-  say_hello:
+executors:
+  docker-executor:
     docker:
       - image: cimg/base:stable
+
+jobs:
+  build:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker Build
+          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest .
+
+  test:
+    executor: docker-executor
     steps:
       - checkout
       - run:
-          name: Say Hello
-          command: echo "Updated config says hi!"
+          name: Run Tests
+          command: echo "Run your Selenium or unit tests here"
+
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Login and Push
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
 workflows:
   version: 2
-  hello-workflow:
+  build_test_deploy:
     jobs:
-      - say_hello
+      - build
+      - test:
+          requires:
+            - build
+      - push:
+          requires:
+            - test
