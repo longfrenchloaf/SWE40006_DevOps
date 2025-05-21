@@ -4,27 +4,66 @@ executors:
   docker-executor:
     docker:
       - image: cimg/base:stable
+    working_directory: ~/project
 
 jobs:
-  build_test_push:
+  build:
     executor: docker-executor
     steps:
       - checkout
       - setup_remote_docker
       - run:
-          name: Docker Build
-          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest -f templates/Dockerfile .
+          name: Build Docker image
+          command: |
+            docker build -t foodbilling:latest -f templates/Dockerfile .
+            docker save foodbilling:latest > foodbilling_latest.tar
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - foodbilling_latest.tar
+
+  test:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
       - run:
-          name: Run Tests
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
+      - run:
+          name: Run tests
           command: echo "Run your Selenium or unit tests here"
+          # Replace above line with your actual test commands
+
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
       - run:
           name: Docker Login
           command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
       - run:
           name: Docker Push
+          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+      - run:
+          name: Push Docker Image
           command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
 workflows:
-  build_and_deploy:
+  build_test_push:
     jobs:
-      - build_test_push
+      - build
+      - test:
+          requires:
+            - build
+      - push:
+          requires:
+            - test
