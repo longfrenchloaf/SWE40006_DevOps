@@ -1,19 +1,41 @@
 import os
 import psycopg2
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/')  # This handles requests to the root URL (e.g., http://your_ip:5000/)
+def home():
+    # return "Hello from Flask!" # For a quick test
+    return render_template('menu.html') # If main.html is your homepage
+
+@app.route('/cart')
+def cart_page():
+    return render_template('cart.html')
+
 def get_menu_items():
     try:
+        db_host = os.getenv("DB_HOST")
+        db_name = os.getenv("DB_NAME")
+        db_user = os.getenv("DB_USER")
+        db_password = os.getenv("DB_PASSWORD")
+        db_port = os.getenv("DB_PORT", "5432")
+
+        app.logger.info(f"Attempting DB connection: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}")
+
         conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            database=os.getenv("DB_NAME", "cafe"),
-            user=os.getenv("DB_USER", "admin"),
-            password=os.getenv("DB_PASSWORD", "admin123")
+            host=db_host,
+            database=db_name,
+            user=db_user,
+            password=db_password,
+            port=db_port,
+            connect_timeout=10,
+            sslmode='require' # Often required for Azure PostgreSQL
         )
+        app.logger.info("DB connection successful!")
+
         cur = conn.cursor()
         cur.execute("SELECT item_id, name, price, image FROM menu_items;")
         rows = cur.fetchall()
@@ -29,6 +51,9 @@ def get_menu_items():
                 "image": row[3],
             })
         return menu
+    except psycopg2.OperationalError as e:
+        app.logger.error(f"DB OperationalError: {e}")
+        return []
     except Exception as e:
         print("Database connection failed:", e)
         return []

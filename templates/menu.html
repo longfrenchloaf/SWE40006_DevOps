@@ -7,7 +7,7 @@
     <meta name="author" content="Your Name"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Our Cozy Cafe Menu</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
@@ -31,14 +31,14 @@
     <script>
     async function loadMenu() {
         try {
-            const response = await fetch("http://localhost:5000/menu");
+            const response = await fetch("/menu");
             const items = await response.json();
             const container = document.getElementById("menu-container");
 
             items.forEach((item, index) => {
                 const itemHTML = `
                 <div class="menu-item">
-                    <img src="${item.image}" alt="${item.name}">
+                    <img src="/static/${item.image}" alt="${item.name}">
                     <div class="item-details">
                         <h4>${item.name}</h4>
                         <p class="price">RM${item.price.toFixed(2)}</p>
@@ -125,23 +125,36 @@
         const applyDiscount = document.getElementById("apply_discount").checked;
 
         try {
-            const response = await fetch("http://localhost:5000/billing", {
+            const response = await fetch("/billing", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ items, apply_discount: applyDiscount })
             });
             const result = await response.json();
-            Swal.fire("Order Summary", `Your total is <strong>RM ${result.total.toFixed(2)}</strong>.`, "success")
-                .then(() => {
-                    localStorage.setItem('cart', JSON.stringify(items));
-                    localStorage.setItem('apply_discount', applyDiscount ? 'yes' : 'no');
-                    window.location.href = "cart.html";
-                });
+
+            localStorage.setItem('cart', JSON.stringify(items));
+            localStorage.setItem('apply_discount', applyDiscount ? 'yes' : 'no');
+
+            // Confirm it's properly saved
+            if (localStorage.getItem('cart')) {
+                Swal.fire("Order Summary", `Your total is <strong>RM ${result.total.toFixed(2)}</strong>.`, "success")
+                    .then(() => {
+                        window.location.href = "cart";
+                    });
+            } else {
+                Swal.fire("Error", "Failed to store cart data. Please try again.", "error");
+            }
+
         } catch (err) {
             console.error("Error submitting order:", err);
             Swal.fire("Error", "Failed to process your order.", "error");
         }
     }
+    document.addEventListener('wheel', function(event) {
+        if (document.activeElement.type === 'number' && document.activeElement === event.target) {
+            event.preventDefault();
+        }
+    }, { passive: false });
 
     window.onload = loadMenu;
     </script>

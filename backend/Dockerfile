@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies required for psycopg2
 RUN apt-get update && apt-get install -y \
@@ -14,7 +14,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy your project files
-COPY . .
+COPY backend/ .
+
+COPY templates/ templates/
+
+COPY static/ static/
 
 # Install dependencies
 RUN pip install --upgrade pip
