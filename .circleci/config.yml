@@ -6,7 +6,7 @@ executors:
       - image: cimg/base:stable
 
 jobs:
-  build:
+  build_test_push:
     executor: docker-executor
     steps:
       - checkout
@@ -14,34 +14,17 @@ jobs:
       - run:
           name: Docker Build
           command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest -f templates/Dockerfile .
-
-  test:
-    executor: docker-executor
-    steps:
-      - checkout
       - run:
           name: Run Tests
           command: echo "Run your Selenium or unit tests here"
-
-  push:
-    executor: docker-executor
-    steps:
-      - checkout
-      - setup_remote_docker
       - run:
-          name: Login and Push
-          command: |
-            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
-            docker push $ACR_NAME.azurecr.io/foodbilling:latest
+          name: Docker Login
+          command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+      - run:
+          name: Docker Push
+          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
 workflows:
-  version: 2
-  build_test_deploy:
+  build_and_deploy:
     jobs:
-      - build
-      - test:
-          requires:
-            - build
-      - push:
-          requires:
-            - test
+      - build_test_push
