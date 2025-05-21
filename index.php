@@ -1,3 +1,3 @@
 <?php
-header("Location: /templates/menu.html");
+header("Location: /templates/cart.html");
 exit;
