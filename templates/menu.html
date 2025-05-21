@@ -14,7 +14,8 @@
     <h2>Cafe Tralalelo Tralala</h2>
 
     <div class="container">
-        <form onsubmit="return validateAndSend(event)">
+        <!-- Added novalidate attribute here -->
+        <form onsubmit="return validateAndSend(event)" novalidate>
             <div class="menu-layout" id="menu-container">
                 <!-- Items will be injected here dynamically -->
             </div>
@@ -44,7 +45,8 @@
                         <p class="price">RM${item.price.toFixed(2)}</p>
                         <div class="quantity-input">
                             <label for="qty_${index}">Quantity:</label>
-                            <input type="number" id="qty_${index}" data-name="${item.name}" data-price="${item.price}" value="0" min="0">
+                            <!-- Changed type="number" to type="text" -->
+                            <input type="text" id="qty_${index}" data-name="${item.name}" data-price="${item.price}" value="0">
                         </div>
                     </div>
                 </div>`;
@@ -57,28 +59,41 @@
     }
 
     async function validateInput() {
-        const inputs = document.querySelectorAll('input[type="number"]');
+        // Select inputs of type="text" that have the data-name attribute
+        const inputs = document.querySelectorAll('input[type="text"][data-name]');
         const invalidFields = [];
         const invalidNames = [];
         let hasQuantity = false;
 
         for (let input of inputs) {
             const val = input.value.trim();
-            const quantity = parseInt(val, 10);
+            let quantity = 0; // Default if invalid or empty
 
-            if (val !== "" && (!/^\d+$/.test(val) || quantity < 0)) {
-                invalidFields.push(input);
-                invalidNames.push(input.dataset.name || "Unknown");
+            // Check if the value is not empty and is NOT a valid non-negative integer string
+            // /^\d+$/ matches only strings like "0", "1", "100". It will not match "", "-5", "5.5", "abc".
+            if (val !== "" && !/^\d+$/.test(val)) {
+                 invalidFields.push(input);
+                 invalidNames.push(input.dataset.name || "Unknown");
+            } else if (val !== "") { // It's a valid positive integer string (or "0")
+                 quantity = parseInt(val, 10);
+                 // With type="text" and the /^\d+$/ regex, quantity will always be >= 0 here.
+                 // No need for a separate quantity < 0 check based on this regex.
+                 if (quantity > 0) {
+                     hasQuantity = true;
+                 }
+            } else { // val is empty string
+                // Treat empty string as 0, which is valid and doesn't contribute to hasQuantity
             }
 
-            if (quantity > 0) hasQuantity = true;
+            // Reset border color from previous validation attempt if it was red
+            input.style.borderColor = '';
         }
 
         if (invalidFields.length > 0) {
             const list = invalidNames.join(", ");
             const result = await Swal.fire({
                 title: "Invalid Input",
-                html: `<p>Invalid quantities for: <strong>${list}</strong></p>Reset to 0 and continue?`,
+                html: `<p>Invalid quantities entered for: <strong>${list}</strong></p>Only non-negative whole numbers are allowed.<br>Reset invalid fields to 0 and continue?`,
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonText: "Yes, reset",
@@ -87,8 +102,11 @@
 
             if (result.isConfirmed) {
                 invalidFields.forEach(input => input.value = "0");
-                return true;
+                // After resetting, re-validate to ensure 'hasQuantity' is correct if all were invalid
+                // This might trigger the 'Empty Cart' message if all valid quantities were reset.
+                return await validateInput(); // Recursive call to check the state after reset
             } else {
+                // Highlight fields if user chooses to fix manually
                 invalidFields.forEach(input => input.style.borderColor = 'red');
                 return false;
             }
@@ -99,30 +117,46 @@
             return false;
         }
 
+        // If we reach here, all inputs that are not empty are valid non-negative integers, and at least one is > 0.
         return true;
     }
 
     async function validateAndSend(event) {
-        event.preventDefault();
-        const valid = await validateInput();
-        if (!valid) return;
+        event.preventDefault(); // Prevent default form submission
 
-        const inputs = document.querySelectorAll('input[type="number"]');
+        const valid = await validateInput(); // Run your custom validation
+        if (!valid) {
+            return; // Stop if validation fails
+        }
+
+        // Validation passed, now collect the data and send
+        const inputs = document.querySelectorAll('input[type="text"][data-name]'); // Select type="text"
         const items = [];
 
         inputs.forEach(input => {
-            const qty = parseInt(input.value);
-            if (qty > 0) {
-                items.push({
-                    name: input.dataset.name,
-                    qty: qty,
-                    price: parseFloat(input.dataset.price),
-                    image: input.closest('.menu-item').querySelector('img').src
-                });
+            const val = input.value.trim();
+            // Only process valid, non-empty quantities (validateInput already ensured their format)
+            if (val !== "" && /^\d+$/.test(val)) {
+                 const qty = parseInt(val, 10);
+                 if (qty > 0) { // Still only add items with quantity > 0 to the cart payload
+                    items.push({
+                        name: input.dataset.name,
+                        qty: qty,
+                        price: parseFloat(input.dataset.price),
+                        // Construct image path correctly from src attribute
+                        image: input.closest('.menu-item').querySelector('img').getAttribute('src')
+                    });
+                }
             }
         });
 
         const applyDiscount = document.getElementById("apply_discount").checked;
+
+        // Ensure there are items to send *after* filtering by quantity > 0
+        if (items.length === 0) {
+             Swal.fire("Empty Cart", "Please select at least one item.", "info");
+             return; // Stop if somehow no items ended up in the list
+        }
 
         try {
             const response = await fetch("/billing", {
@@ -130,17 +164,28 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ items, apply_discount: applyDiscount })
             });
+
+            if (!response.ok) {
+                 throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const result = await response.json();
 
+            // Store the *filtered* items list (only quantity > 0) and discount status
             localStorage.setItem('cart', JSON.stringify(items));
             localStorage.setItem('apply_discount', applyDiscount ? 'yes' : 'no');
 
-            // Confirm it's properly saved
+            // Confirm it's properly saved and navigate
             if (localStorage.getItem('cart')) {
-                Swal.fire("Order Summary", `Your total is <strong>RM ${result.total.toFixed(2)}</strong>.`, "success")
-                    .then(() => {
-                        window.location.href = "cart";
-                    });
+                Swal.fire({
+                    title: "Order Summary",
+                    html: `Your estimated total is <strong>RM ${result.total.toFixed(2)}</strong>.<br>(Final total with SST shown on next page)`,
+                    icon: "success",
+                    confirmButtonText: "View Order Details"
+                })
+                .then(() => {
+                    window.location.href = "cart";
+                });
             } else {
                 Swal.fire("Error", "Failed to store cart data. Please try again.", "error");
             }
@@ -150,11 +195,17 @@
             Swal.fire("Error", "Failed to process your order.", "error");
         }
     }
+
+    // Optional: Keep or remove the wheel listener.
+    // It prevents scrolling changing the value, which might still be desired even for type="text".
     document.addEventListener('wheel', function(event) {
-        if (document.activeElement.type === 'number' && document.activeElement === event.target) {
-            event.preventDefault();
+        // Check if the active element is one of your quantity inputs (type="text" with data-name)
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement.type === 'text' && activeElement.dataset.name) {
+             event.preventDefault();
         }
     }, { passive: false });
+
 
     window.onload = loadMenu;
     </script>
