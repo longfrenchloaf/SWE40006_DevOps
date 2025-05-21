@@ -34,8 +34,7 @@ jobs:
           command: docker load -i ~/project/foodbilling_latest.tar
       - run:
           name: Run tests
-          command: echo "Run your Selenium or unit tests here"
-          # Replace above line with your actual test commands
+          command: docker run --rm foodbilling:latest python program_test.py
 
   push:
     executor: docker-executor
