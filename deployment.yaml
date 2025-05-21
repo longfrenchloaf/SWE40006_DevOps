@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: foodbilling
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: foodbilling
+  template:
+    metadata:
+      labels:
+        app: foodbilling
+    spec:
+      containers:
+        - name: foodbilling
+          image: swe40006billingacr.azurecr.io/foodbilling:latest
+          ports:
+            - containerPort: 8080
