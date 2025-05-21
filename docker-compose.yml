@@ -33,7 +33,7 @@ services:
     build: ./templates
     container_name: html_frontend
     ports:
-      - "8080:8080"
+      - "8000:8000"
     depends_on:
       - backend
 
