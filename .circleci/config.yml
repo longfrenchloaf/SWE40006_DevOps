@@ -13,14 +13,16 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Build Docker image
+          name: Build Docker Compose services
           command: |
-            docker build -t foodbilling:latest -f templates/Dockerfile .
-            docker save foodbilling:latest > foodbilling_latest.tar
+            docker-compose build
+            docker save $(docker image ls billing_backend -q) -o backend.tar
+            docker save $(docker image ls html_frontend -q) -o frontend.tar
       - persist_to_workspace:
           root: ~/project
           paths:
-            - foodbilling_latest.tar
+            - backend.tar
+            - frontend.tar
 
   test:
     executor: docker-executor
@@ -30,11 +32,17 @@ jobs:
           at: ~/project
       - setup_remote_docker
       - run:
-          name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
       - run:
-          name: Run tests
-          command: echo "Run your Selenium or integration tests here"
+          name: Start services with docker-compose
+          command: docker-compose up -d
+      - run:
+          name: Run integration tests
+          command: echo "Run your Selenium or API tests here"
+
   push:
     executor: docker-executor
     steps:
@@ -43,17 +51,21 @@ jobs:
           at: ~/project
       - setup_remote_docker
       - run:
-          name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
       - run:
-          name: Docker Login
-          command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+          name: Tag and push backend to ACR
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker tag billing_backend $ACR_NAME.azurecr.io/billing_backend:latest
+            docker push $ACR_NAME.azurecr.io/billing_backend:latest
       - run:
-          name: Docker Push
-          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
-      - run:
-          name: Push Docker Image
-          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
+          name: Tag and push frontend to ACR
+          command: |
+            docker tag html_frontend $ACR_NAME.azurecr.io/html_frontend:latest
+            docker push $ACR_NAME.azurecr.io/html_frontend:latest
 
 workflows:
   build_test_push:
