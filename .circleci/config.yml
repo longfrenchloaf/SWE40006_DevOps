@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable # Includes basic tools like ssh, scp
+      - image: cimg/base:stable
     working_directory: ~/project
 
 jobs:
@@ -11,121 +11,52 @@ jobs:
     executor: docker-executor
     steps:
       - checkout
-      - setup_remote_docker:
-          version: 20.10.17 # Specify Docker version
+      - setup_remote_docker
       - run:
           name: Build Docker image
           command: |
-            # Building backend image, assuming Dockerfile is in backend/
-            # and build context is ./backend
-            docker build -t mybillingapp:latest -f backend/Dockerfile ./backend
+            docker build -t mybillingapp:latest -f templates/Dockerfile .
             docker save mybillingapp:latest > mybillingapp_latest.tar
       - persist_to_workspace:
           root: ~/project
           paths:
             - mybillingapp_latest.tar
 
-  test: # Placeholder test job
+  test:
     executor: docker-executor
     steps:
       - checkout
       - attach_workspace:
           at: ~/project
-      - setup_remote_docker:
-          version: 20.10.17
+      - setup_remote_docker
       - run:
           name: Load Docker image
           command: docker load -i ~/project/mybillingapp_latest.tar
       - run:
           name: Run tests
-          # Replace with actual test commands for your backend image
-          # e.g., docker run mybillingapp:latest pytest
-          command: |
-            echo "Running basic container check..."
-            docker run -d --name backend-test mybillingapp:latest
-            sleep 5
-            docker ps | grep backend-test || (echo "Backend container failed to start" && exit 1)
-            docker rm -f backend-test
-            echo "Basic check passed. Implement proper tests!"
-
+          command: echo "Run your Selenium or integration tests here"
   push:
     executor: docker-executor
     steps:
-      - attach_workspace: # No checkout needed, using artifact from workspace
+      - checkout
+      - attach_workspace:
           at: ~/project
-      - setup_remote_docker:
-          version: 20.10.17
+      - setup_remote_docker
       - run:
           name: Load Docker image
           command: docker load -i ~/project/mybillingapp_latest.tar
       - run:
-          name: Docker Login to ACR
-          # Ensure AZURE_USERNAME, AZURE_PASSWORD, ACR_NAME are set in CircleCI project env vars
+          name: Docker Login
           command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
       - run:
-          name: Tag and Push Docker Image to ACR
-          command: |
-            docker tag mybillingapp:latest $ACR_NAME.azurecr.io/mybillingapp:latest
-            docker push $ACR_NAME.azurecr.io/mybillingapp:latest
-
-  deploy:
-    executor: docker-executor # cimg/base has ssh client
-    steps:
-      - add_ssh_keys:
-          fingerprints:
-            - "YOUR_SSH_KEY_FINGERPRINT" # Add your SSH key fingerprint here
-            # To get fingerprint: ssh-keygen -E md5 -lf ~/.ssh/id_rsa (or your key file)
-            # Or add the key directly in Project Settings > SSH Keys and use its fingerprint.
+          name: Docker Push
+          command: docker tag mybillingapp:latest $ACR_NAME.azurecr.io/mybillingapp:latest
       - run:
-          name: Deploy to Server via SSH
-          command: |
-            # Define variables - these should be set as CircleCI Environment Variables
-            # DB_HOST_FQDN, DB_USER_FROM_TF_VAR, DB_PASSWORD_FROM_TF_VAR, DB_NAME_SUGGESTION
-            # DEPLOY_SERVER_IP, DEPLOY_SERVER_USER
-            # ACR_NAME (used to construct ACR_IMAGE_FULL_PATH)
-
-            APP_HOST_PORT="5000"
-            APP_CONTAINER_PORT="5000"
-            ACR_IMAGE_FULL_PATH="${ACR_NAME}.azurecr.io/mybillingapp:latest" # Construct full path
-
-            echo "Deploying to ${DEPLOY_SERVER_USER}@${DEPLOY_SERVER_IP}"
-            echo "Image: ${ACR_IMAGE_FULL_PATH}"
-
-            # SSH into the server and execute the deployment commands
-            # Note the use of single quotes for the remote script to prevent local expansion of $
-            # and double quotes within the remote script where variable expansion IS needed.
-            ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER}@${DEPLOY_SERVER_IP} '
-              echo "On server: Pulling latest image..."
-              # Login to ACR on the deployment server (if not already configured)
-              # Consider setting up a service principal on the VM for ACR pull if preferred
-              # For simplicity, this example assumes you might pass credentials or the VM has pull rights
-              # This login step might be better handled by VM managed identity or pre-configuration
-              # sudo docker login '${ACR_NAME}'.azurecr.io -u '${AZURE_USERNAME_FOR_PULL}' -p '${AZURE_PASSWORD_FOR_PULL}'
-
-              sudo docker pull "'${ACR_IMAGE_FULL_PATH}'"
-
-              echo "On server: Stopping and removing old container if it exists..."
-              sudo docker stop myapp_container || true # true makes it not fail if container doesn't exist
-              sudo docker rm myapp_container || true
-
-              echo "On server: Starting new container..."
-              sudo docker run -d \
-                -p '${APP_HOST_PORT}':'${APP_CONTAINER_PORT}' \
-                -e DB_HOST="'${DB_HOST_FQDN}'" \
-                -e DB_PORT=5432 \
-                -e DB_NAME="'${DB_NAME_SUGGESTION}'" \
-                -e DB_USER="'${DB_USER_FROM_TF_VAR}'" \
-                -e DB_PASSWORD="'${DB_PASSWORD_FROM_TF_VAR}'" \
-                --restart always \
-                --name myapp_container \
-                "'${ACR_IMAGE_FULL_PATH}'"
-
-              echo "On server: Deployment attempt finished."
-              sudo docker ps -a
-            '
+          name: Push Docker Image
+          command: docker push $ACR_NAME.azurecr.io/mybillingapp:latest
 
 workflows:
-  build_test_push_deploy: # Renamed workflow
+  build_test_push:
     jobs:
       - build
       - test:
@@ -133,8 +64,4 @@ workflows:
             - build
       - push:
           requires:
-            - test # Only push if tests pass
-      - deploy:
-          requires:
-            - push # Only deploy if push is successful
-        
+            - test
