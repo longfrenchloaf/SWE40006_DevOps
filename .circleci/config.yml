@@ -42,30 +42,30 @@ jobs:
       - run:
           name: Run integration tests
           command: echo "Run your Selenium or API tests here"
-push:
-  executor: docker-executor
-  steps:
-    - checkout
-    - attach_workspace:
-        at: ~/project
-    - setup_remote_docker
-    - run:
-        name: Load Docker images
-        command: |
-          docker load -i ~/project/backend.tar
-          docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
 
-          docker load -i ~/project/frontend.tar
-          docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
-    - run:
-        name: Push backend to ACR
-        command: |
-          echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
-          docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
-    - run:
-        name: Push frontend to ACR
-        command: |
-          docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+            docker load -i ~/project/frontend.tar
+            docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+      - run:
+          name: Push backend to ACR
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+      - run:
+          name: Push frontend to ACR
+          command: |
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
 
 workflows:
   build_test_push:
