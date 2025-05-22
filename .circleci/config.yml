@@ -16,8 +16,8 @@ jobs:
           name: Build Docker Compose services
           command: |
             docker-compose build
-            docker save $(docker image ls billing_backend -q) -o backend.tar
-            docker save $(docker image ls html_frontend -q) -o frontend.tar
+            docker save swe40006_devops-backend -o backend.tar
+            docker save swe40006_devops-frontend -o frontend.tar
       - persist_to_workspace:
           root: ~/project
           paths:
