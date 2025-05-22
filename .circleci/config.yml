@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/base:stable # Includes SSH client
     working_directory: ~/project
 
 jobs:
@@ -11,7 +11,8 @@ jobs:
     executor: docker-executor
     steps:
       - checkout
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 20.10.17 # Good practice to specify version
       - run:
           name: Build Docker image
           command: |
@@ -22,41 +23,105 @@ jobs:
           paths:
             - foodbilling_latest.tar
 
-  test:
+  test: # Placeholder test job
     executor: docker-executor
     steps:
       - checkout
       - attach_workspace:
           at: ~/project
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 20.10.17
       - run:
           name: Load Docker image
           command: docker load -i ~/project/foodbilling_latest.tar
       - run:
-          name: Run tests
-          command: echo "Run your Selenium or integration tests here"
+          name: Run tests (Placeholder)
+          # Replace with actual test commands for your application
+          # e.g., docker run foodbilling:latest pytest /app/tests
+          command: |
+            echo "Running basic container check..."
+            # This is a very minimal check, not a real test.
+            # docker run -d --name test-container foodbilling:latest
+            # sleep 5
+            # docker ps | grep test-container || (echo "Test container failed to start" && exit 1)
+            # docker rm -f test-container
+            echo "Run your Selenium or integration tests here"
+
   push:
     executor: docker-executor
     steps:
-      - checkout
       - attach_workspace:
           at: ~/project
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 20.10.17
       - run:
           name: Load Docker image
           command: docker load -i ~/project/foodbilling_latest.tar
       - run:
-          name: Docker Login
+          name: Docker Login to ACR
+          # AZURE_USERNAME, AZURE_PASSWORD, ACR_NAME must be set in CircleCI env vars
           command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
       - run:
-          name: Docker Push
-          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
-      - run:
-          name: Push Docker Image
-          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
+          name: Tag and Push Docker Image to ACR
+          command: |
+            docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+            docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
+  deploy:
+    executor: docker-executor
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCjcBmOGkks9KjPsv7JEjH3U4KvzlT2J8jN+Pf6rYHHdoST+z7JvfT0hzjbeB7Sjm7iMTajclZUqqWMqOyYlJtjl7Rk6mtfKtYQNnq49l1OjvQgBv/NBoCqWg3GBJ9LwiP3w6k4FtQ786JjmLWXs/6a/M1hbQba2m8XfmVdgCDeF3C32Xzgww/G6YHIhpfhoBkyW9ZXhG8KUT9yKXMToFcrfUOlD6iE4+2D1Mutz3uUNnkVJqFRw4uKbkyWsplOnauhELwfG/hrKFcS+aDL77/BGLfnzApdWVnsk/EoPgMPIY92c3wNSMj/mzHPSAciw0lPnSt8uZIzrDj4hYo2+8rB" # Replace with the fingerprint of the SSH key added to CircleCI
+      - run:
+          name: Deploy Application to Server
+          command: |
+            # Hardcoded or from Env Vars
+            TARGET_APP_HOST_PORT="${APP_HOST_PORT:-5000}"
+            TARGET_APP_CONTAINER_PORT="${APP_CONTAINER_PORT:-5000}"
+            TARGET_DB_PORT="5432" # Usually fixed for PostgreSQL
+
+            # Construct the full image path dynamically using ACR_NAME and the image tag from build/push
+            TARGET_ACR_IMAGE_FULL_PATH="${ACR_NAME}.azurecr.io/foodbilling:latest"
+            CONTAINER_NAME="foodbilling_app_container" # Define a consistent container name
+
+            echo "Deploying ${TARGET_ACR_IMAGE_FULL_PATH} to ${DEPLOY_SERVER_USER}@${DEPLOY_SERVER_IP}"
+
+            # SSH into the server and execute deployment commands
+            # Single quotes around the remote script prevent local shell expansion
+            ssh -o StrictHostKeyChecking=no ${DEPLOY_SERVER_USER}@${DEPLOY_SERVER_IP} '
+              echo "--- On Server: Starting Deployment ---"
+
+              # Optional: Login to ACR on the server if VM identity/permissions are not set up
+              # This is less secure than VM managed identity. Credentials would need to be available.
+              # echo "Logging into ACR on server..."
+              # sudo docker login '${ACR_NAME}'.azurecr.io -u '${AZURE_USERNAME_FOR_PULL}' -p '${AZURE_PASSWORD_FOR_PULL}' || echo "ACR login failed or already logged in"
+
+              echo "Pulling latest image: '${TARGET_ACR_IMAGE_FULL_PATH}'"
+              sudo docker pull "'${TARGET_ACR_IMAGE_FULL_PATH}'"
+
+              echo "Stopping and removing existing container: '${CONTAINER_NAME}' (if any)"
+              sudo docker stop '${CONTAINER_NAME}' || true
+              sudo docker rm '${CONTAINER_NAME}' || true
+
+              echo "Starting new container: '${CONTAINER_NAME}'"
+              sudo docker run -d \
+                -p '${TARGET_APP_HOST_PORT}':'${TARGET_APP_CONTAINER_PORT}' \
+                -e DB_HOST="'${DB_HOST_FQDN}'" \
+                -e DB_PORT="'${TARGET_DB_PORT}'" \
+                -e DB_NAME="'${DB_NAME_SUGGESTION}'" \
+                -e DB_USER="'${DB_USER_FROM_TF_VAR}'" \
+                -e DB_PASSWORD="'${DB_PASSWORD_FROM_TF_VAR}'" \
+                --restart always \
+                --name "'${CONTAINER_NAME}'" \
+                "'${TARGET_ACR_IMAGE_FULL_PATH}'"
+
+              echo "Listing running containers..."
+              sudo docker ps
+              echo "--- On Server: Deployment Attempt Finished ---"
+            '
 workflows:
-  build_test_push:
+  build_test_push_deploy: # Renamed workflow for clarity
     jobs:
       - build
       - test:
@@ -64,4 +129,8 @@ workflows:
             - build
       - push:
           requires:
-            - test
+            - test # Only push if tests pass
+      - deploy:
+          requires:
+            - push # Only deploy if image push is successful
+          
