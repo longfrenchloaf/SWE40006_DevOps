@@ -54,7 +54,10 @@ jobs:
           name: Load Docker images
           command: |
             docker load -i ~/project/backend.tar
+            docker tag $(docker images -q | head -n 1) swe40006_devops-backend:latest
+
             docker load -i ~/project/frontend.tar
+            docker tag $(docker images -q | head -n 1) swe40006_devops-frontend:latest
       - run:
           name: Tag and push backend to ACR
           command: |
