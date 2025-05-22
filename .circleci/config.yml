@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.11  # Use a richer image that supports curl, pip, etc.
     working_directory: ~/project
 
 jobs:
@@ -42,6 +42,7 @@ jobs:
       - run:
           name: Run integration tests
           command: echo "Run your Selenium or API tests here"
+
   push:
     executor: docker-executor
     steps:
@@ -67,6 +68,35 @@ jobs:
           command: |
             docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
 
+  deploy:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install kubectl and Azure CLI
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y curl apt-transport-https
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+            curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+      - run:
+          name: Login to Azure and AKS
+          command: |
+            az login --service-principal -u $AZURE_USERNAME -p $AZURE_PASSWORD --tenant $AZURE_TENANT_ID
+            az aks get-credentials --name $AKS_CLUSTER_NAME --resource-group $AZURE_RESOURCE_GROUP
+      - run:
+          name: Deploy to AKS
+          command: |
+            kubectl apply -f k8s/
+            kubectl rollout status deployment/backend-deployment || kubectl describe deployment backend-deployment
+            kubectl rollout status deployment/frontend-deployment || kubectl describe deployment frontend-deployment
+      - run:
+          name: Get deployment status
+          command: |
+            kubectl get all
+
 workflows:
   build_test_push:
     jobs:
@@ -77,3 +107,6 @@ workflows:
       - push:
           requires:
             - test
+      - deploy:
+          requires:
+            - push
