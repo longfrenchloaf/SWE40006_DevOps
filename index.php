@@ -1,3 +1,3 @@
 <?php
-header("Location: /templates/menu.html");
+header("Location: http://localhost:5000/menu");
 exit;
