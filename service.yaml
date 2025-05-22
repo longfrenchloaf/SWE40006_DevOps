@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mybillingapp-service
+  name: foodbilling-service
 spec:
   type: LoadBalancer
   selector:
-    app: mybillingapp
+    app: foodbilling
   ports:
     - protocol: TCP
       port: 80
