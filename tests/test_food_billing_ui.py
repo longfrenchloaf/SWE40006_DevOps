@@ -66,11 +66,10 @@ def read_csv_data(filename='test_cases.csv'):
 # These helpers MUST match the JS validation logic in validateInput()
 
 def is_valid_positive_integer_string(qty_str):
-    """Checks if a string is composed only of digits (>= 0 integer) matching JS /^\d+$/."""
+    """Checks if a string is composed only of digits (>= 0 integer) matching JS /^\d+$/.""" 
     if qty_str is None or qty_str.strip() == '':
-        return False # Empty string is treated as 0 quantity *after* format check, but not a valid *input format* for this specific check according to the JS regex !/^\d+$/.
-    # JS regex /^\d+$/ checks if the *entire* string consists of one or more digits.
-    return qty_str.strip().isdigit() # isdigit() does exactly this for non-empty strings.
+        return False
+    return qty_str.strip().isdigit() # This uses isdigit(), which is correct
 
 def has_invalid_quantity_input(test_case):
     """Checks if any quantity input string would trigger the 'Invalid Input' SweetAlert."""
@@ -115,19 +114,45 @@ def test_case(request):
     return request.param
 
 # --- Fixture for WebDriver Setup ---
-@pytest.fixture(scope="module") # Use module scope for efficiency unless isolation per test is strictly needed
+@pytest.fixture(scope="module")
 def driver():
     """Pytest fixture to set up and tear down the Selenium WebDriver."""
     options = Options()
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    # options.add_argument('--headless') # UNCOMMENT this for CI/headless execution (no visible browser window)
-    # options.add_argument('--disable-gpu') # Might be needed for headless on some systems
-    options.add_argument('--window-size=1920,1080')
-    options.add_argument('--start-maximized')
-    # options.add_argument('--ignore-certificate-errors') # Use with caution
 
     print("\nSetting up browser...")
+    # Read the HEADLESS env var...
+    headless_enabled = os.environ.get("HEADLESS", "False").lower() == "true"
+
+    if headless_enabled:
+        print("Running browser in HEADLESS mode.")
+        # Recommended arguments for headless Chrome in Docker
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-setuid-sandbox')
+        options.add_argument('--allow-running-insecure-content')
+        options.add_argument('--ignore-certificate-errors') # Use with caution
+        options.add_argument('--disable-features=site-per-process')
+        options.add_argument('--disable-browser-side-navigation')
+        options.add_argument('--hide-scrollbars')
+        options.add_argument('--mute-audio')
+        options.add_argument('--verbose') # Enable verbose logging for debugging
+        options.add_argument('--log-level=0') # Set log level to verbose
+        options.add_argument('--no-zygote')
+        options.add_argument('--single-process')
+        options.add_argument('--disable-features=VizDisplayCompositor')
+        options.add_argument('--remote-debugging-port=9222')
+
+    else:
+         print("Running browser in HEADED mode.")
+         # Keep window size consistent even in headed mode if desired
+         options.add_argument('--window-size=1920,1080')
+         # options.add_argument('--start-maximized') # Use if you want maximize in headed mode
+         # options.add_argument('--ignore-certificate-errors') # If needed globally
+
     driver = webdriver.Chrome(options=options)
     yield driver
     print("\nClosing browser...")

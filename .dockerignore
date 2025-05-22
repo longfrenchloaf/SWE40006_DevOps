@@ -1,0 +1,33 @@
+# Ignore Docker-related files not needed for this specific image build
+# (Though we're building from the root with a specific Dockerfile path,
+# explicit ignores prevent accidental inclusion or context bloat)
+Dockerfile # Ignore the main app Dockerfile if one exists in root
+docker-compose.yml
+.dockerignore
+.git
+.gitignore
+
+# Ignore application code directories - ESSENTIAL!
+backend/
+static/
+templates/
+
+# Also explicitly ignore the backend requirements.txt
+backend/requirements.txt
+
+# Ignore Python cache and build outputs
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Ignore any editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+
+# Ignore local environment files
+.env
+venv/
