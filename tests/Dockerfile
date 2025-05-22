@@ -1,32 +1,32 @@
-# Use a base image from CircleCI that includes Python, Chrome, and Chromedriver
-# This image is specifically designed for browser testing in CI environments.
-FROM cimg/browser:stable
+# Dockerfile located at SWE40006_DevOps/tests/Dockerfile
+FROM selenium/standalone-chrome:103.0-20250515 as selenium_base 
 
-# Set the working directory inside the container
-# All subsequent commands will run relative to this directory
-WORKDIR /app/test-runner
+# Our test runner image
+FROM selenium_base
 
-# --- Install Python Dependencies ---
-# Copy the test-specific Python dependency file (requirements.txt)
-# Source: 'tests/requirements.txt' is relative to the build context (project root)
-# Destination: '.' copies it into the WORKDIR ('/app/test-runner')
-COPY tests/requirements.txt .
+# Set environment variables
+ENV APP_URL=http://4.206.70.73:5000/
+# The Selenium image handles headless mode via its own configuration/entrypoint.
+# Keep this ENV var for your Python script's logic if it uses it elsewhere.
+ENV HEADLESS=true
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Install the Python dependencies listed in requirements.txt
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy your Python requirements and install them
+# The Selenium base image has Python, but you need your specific libraries.
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- Copy Test Code ---
-# Copy your test code and test data (the entire content of the 'tests' directory)
-# The source path '.' is relative to the Dockerfile's location ('tests/') within the build context
-# The destination path '.' copies these files directly into the WORKDIR
-COPY . . # Corrected based on previous debugging
+# Copy your test files and data into the working directory
+COPY . .
 
-# Ensure Chromedriver is in the PATH. cimg/browser image typically ensures this.
-# No extra steps needed here to install Chrome or Chromedriver.
+# The default ENTRYPOINT/CMD of selenium/standalone-chrome starts the Selenium Hub/Node.
+# We need to override this to run *our* pytest command instead.
+# The Python executable should be in the PATH, but you can use /usr/local/bin/python if needed.
 
-# --- Set Default Command ---
-# Define the default command to run when the container starts
-# This command runs pytest and generates a JUnit XML report
-# The command runs from the WORKDIR (/app/test-runner)
-# The test file path is relative to the WORKDIR
-CMD ["python3", "-m", "pytest", "--junitxml=test-results.xml", "test_food_billing_ui.py"] # Corrected based on previous debugging
+# Override the container's entrypoint and command to run pytest
+ENTRYPOINT ["python"]
+CMD ["-m", "pytest", "test_food_billing_ui.py", "--junitxml=test-results.xml"]

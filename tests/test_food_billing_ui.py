@@ -2,15 +2,18 @@
 
 import pytest
 import time
-import pandas as pd # Using pandas for easier CSV reading
-import os # Import os to read environment variables
+import pandas as pd
+import os
+# Remove these imports
+# from selenium.webdriver.chrome.service import Service
+# from webdriver_manager.chrome import ChromeDriverManager
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException
 
 # --- Helper function to read CSV data ---
 def read_csv_data(filename='test_cases.csv'):
@@ -66,10 +69,10 @@ def read_csv_data(filename='test_cases.csv'):
 # These helpers MUST match the JS validation logic in validateInput()
 
 def is_valid_positive_integer_string(qty_str):
-    """Checks if a string is composed only of digits (>= 0 integer) matching JS /^\d+$/.""" 
+    r"""Checks if a string is composed only of digits (>= 0 integer) matching JS /^\d+$/."""
     if qty_str is None or qty_str.strip() == '':
         return False
-    return qty_str.strip().isdigit() # This uses isdigit(), which is correct
+    return qty_str.strip().isdigit()
 
 def has_invalid_quantity_input(test_case):
     """Checks if any quantity input string would trigger the 'Invalid Input' SweetAlert."""
@@ -120,44 +123,65 @@ def driver():
     options = Options()
 
     print("\nSetting up browser...")
-    # Read the HEADLESS env var...
     headless_enabled = os.environ.get("HEADLESS", "False").lower() == "true"
+
+    # Use a list to easily add arguments
+    chrome_arguments = [
+        # These flags are generally needed for Headless Chrome in Docker
+        '--no-sandbox', # Essential in Docker
+        '--disable-dev-shm-usage', # Essential in Docker, covered by --shm-size but still good
+        '--window-size=1920,1080', # Necessary for defining resolution in headless
+        '--disable-gpu', # Often implied by --headless=new, but explicit is fine
+        # Other flags we found helpful:
+        '--disable-extensions',
+        '--disable-setuid-sandbox',
+        # '--allow-running-insecure-content', # Use cautiously, only if needed
+        # '--ignore-certificate-errors', # Use cautiously, only if needed
+        '--disable-features=site-per-process',
+        '--disable-browser-side-navigation',
+        '--hide-scrollbars',
+        '--mute-audio',
+        '--no-zygote',
+        '--single-process',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-default-apps',
+        '--disable-backgrounding-type=none',
+        '--disable-translate',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--disable-prompt-on-post',
+        # Debugging ports might conflict with the Selenium image's default ports unless changed
+        # If the Selenium image uses 4444 for the webdriver protocol, avoid 9222 here.
+        # Let's remove them for simplicity with the standalone image.
+        # '--remote-debugging-port=9222',
+        # '--remote-debugging-address=0.0.0.0',
+    ]
 
     if headless_enabled:
         print("Running browser in HEADLESS mode.")
-        # Recommended arguments for headless Chrome in Docker
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('--disable-extensions')
-        options.add_argument('--disable-setuid-sandbox')
-        options.add_argument('--allow-running-insecure-content')
-        options.add_argument('--ignore-certificate-errors') # Use with caution
-        options.add_argument('--disable-features=site-per-process')
-        options.add_argument('--disable-browser-side-navigation')
-        options.add_argument('--hide-scrollbars')
-        options.add_argument('--mute-audio')
-        options.add_argument('--verbose') # Enable verbose logging for debugging
-        options.add_argument('--log-level=0') # Set log level to verbose
-        options.add_argument('--no-zygote')
-        options.add_argument('--single-process')
-        options.add_argument('--disable-features=VizDisplayCompositor')
-        options.add_argument('--remote-debugging-port=9222')
+        # Use the new headless mode explicitly
+        chrome_arguments.append('--headless=new')
+        # The Selenium image is likely already set up for headless, this confirms it.
 
-    else:
-         print("Running browser in HEADED mode.")
-         # Keep window size consistent even in headed mode if desired
-         options.add_argument('--window-size=1920,1080')
-         # options.add_argument('--start-maximized') # Use if you want maximize in headed mode
-         # options.add_argument('--ignore-certificate-errors') # If needed globally
+    # Add all arguments to the options
+    for arg in chrome_arguments:
+         options.add_argument(arg)
 
-    driver = webdriver.Chrome(options=options)
+    # --- Initialize the WebDriver - Driver is provided by the base image ---
+    print("Initializing WebDriver...")
+    try:
+        # Just call install() directly. It handles version detection internally.
+        driver = webdriver.Chrome(options=options) # Removed log_level
+        print("WebDriver initialized.")
+    except Exception as e:
+        # This will catch errors if Chrome/ChromeDriver aren't found in PATH
+        # or if there's still a fundamental startup issue (less likely with official image).
+        pytest.fail(f"Error initializing WebDriver: {e}")
+
+
     yield driver
     print("\nClosing browser...")
     driver.quit()
-
 
 # --- Helper functions (wait_for_element, etc.) ---
 

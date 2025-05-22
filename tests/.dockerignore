@@ -1,0 +1,5 @@
+__pycache__
+.pytest_cache
+*.pyc
+*.log
+test-results.xml # Don't copy previous results into the new build
