@@ -15,12 +15,12 @@ jobs:
       - run:
           name: Build Docker image
           command: |
-            docker build -t foodbilling:latest -f backend/Dockerfile .
-            docker save foodbilling:latest > foodbilling_latest.tar
+            docker build -t mybillingapp:latest -f backend/Dockerfile .
+            docker save mybillingapp:latest > mybillingapp_latest.tar
       - persist_to_workspace:
           root: ~/project
           paths:
-            - foodbilling_latest.tar
+            - mybillingapp_latest.tar
 
   test:
     executor: docker-executor
@@ -31,7 +31,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          command: docker load -i ~/project/mybillingapp_latest.tar
       - run:
           name: Run tests
           command: echo "Run your Selenium or integration tests here"
@@ -44,16 +44,16 @@ jobs:
       - setup_remote_docker
       - run:
           name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          command: docker load -i ~/project/mybillingapp_latest.tar
       - run:
           name: Docker Login
           command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
       - run:
           name: Docker Push
-          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+          command: docker tag mybillingapp:latest $ACR_NAME.azurecr.io/mybillingapp:latest
       - run:
           name: Push Docker Image
-          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
+          command: docker push $ACR_NAME.azurecr.io/mybillingapp:latest
 
 workflows:
   build_test_push:
