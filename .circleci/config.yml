@@ -13,8 +13,7 @@ jobs:
       - setup_remote_docker
       - run:
           name: Docker Build
-          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest .
-          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest -f templates/Dockerfile .
+          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest -f backend/Dockerfile .
 
   test:
     executor: docker-executor
@@ -35,6 +34,24 @@ jobs:
             echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
             docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
+  deploy:
+    executor: docker-executor
+    steps:
+      - setup_remote_docker
+      - run:
+          name: Deploy Container from ACR
+          command: |
+            docker run -d \
+              -p ${APP_HOST_PORT}:${APP_CONTAINER_PORT} \
+              -e DB_HOST=${DB_HOST_FQDN} \
+              -e DB_PORT=5432 \
+              -e DB_NAME=${DB_NAME_SUGGESTION} \
+              -e DB_USER=${DB_USER_FROM_TF_VAR} \
+              -e DB_PASSWORD=${DB_PASSWORD_FROM_TF_VAR} \
+              --restart always \
+              --name myapp_container \
+              ${ACR_IMAGE_FULL_PATH}
+
 workflows:
   version: 2
   build_test_deploy:
@@ -46,3 +63,6 @@ workflows:
       - push:
           requires:
             - test
+      - deploy:
+          requires:
+            - push
