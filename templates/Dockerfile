@@ -1,5 +1,5 @@
-FROM php:8.2-cli
-WORKDIR /var/www/html
-COPY . .
-EXPOSE 8080
-CMD ["php", "-S", "0.0.0.0:8080"]
+# templates/Dockerfile
+FROM nginx:alpine
+
+# Copy all HTML (and optionally static assets like CSS/JS) to Nginx web root
+COPY . /usr/share/nginx/html/
