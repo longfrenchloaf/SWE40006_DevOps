@@ -14,7 +14,9 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: billing_backend
     depends_on:
       - db
@@ -25,12 +27,16 @@ services:
       DB_PASSWORD: admin123
     volumes:
       - ./backend:/app
+      # optionally mount templates for dev, e.g.:
+      - ./templates:/app/templates:ro
     ports:
       - "5000:5000"
     command: ["python", "billing.py"]
 
   frontend:
-    build: ./templates
+    build:
+      context: ./templates
+      dockerfile: Dockerfile
     container_name: html_frontend
     ports:
       - "8080:80"
