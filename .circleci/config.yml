@@ -1,37 +1,70 @@
 version: 2.1
-orbs:
-  python: circleci/python@2
-jobs:
-  test-python:
-    # Install dependencies and run tests
-    docker:
-      - image: cimg/python:3.8-node
-    working_directory: ~/project/backend
-    steps:
-      - checkout:
-          path: ~/project
-      - python/install-packages
-      - run:
-          name: Install pytest
-          command: pip install pytest
-      - run:
-          name: Run tests
-          command: pytest --junitxml=junit.xml || ((($? == 5)) && echo 'Did not find any tests to run.')
-      - store_test_results:
-          path: junit.xml
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
+
+executors:
+  docker-executor:
     docker:
       - image: cimg/base:stable
+    working_directory: ~/project
+
+jobs:
+  build:
+    executor: docker-executor
     steps:
-      # Replace this with steps to deploy to users
+      - checkout
+      - setup_remote_docker
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Build Docker image
+          command: |
+            docker build -t foodbilling:latest -f backend/Dockerfile .
+            docker save foodbilling:latest > foodbilling_latest.tar
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - foodbilling_latest.tar
+
+  test:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
+      - run:
+          name: Run tests
+          command: docker run --rm foodbilling:latest python program_test.py
+      - run:
+          name: Selenium/Integration tests placeholder
+          command: echo "Run your Selenium or integration tests here"
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
+      - run:
+          name: Docker Login
+          command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+      - run:
+          name: Docker Push
+          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+      - run:
+          name: Push Docker Image
+          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
+
 workflows:
-  build-and-test:
+  build_test_push:
     jobs:
-      - test-python
-    # - deploy:
-    #     requires:
-    #       - test-python
+      - build
+      - test:
+          requires:
+            - build
+      - push:
+          requires:
+            - test
