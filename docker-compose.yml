@@ -14,9 +14,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   backend:
-    build: 
-    context: .
-    dockerfile: backend/Dockerfile
+    build: ./backend
     container_name: billing_backend
     depends_on:
       - db
