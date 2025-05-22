@@ -15,7 +15,7 @@ jobs:
       - run:
           name: Build Docker image
           command: |
-            docker build -t foodbilling:latest -f backend/Dockerfile .
+            docker build -t foodbilling:latest -f frontend/Dockerfile .
             docker save foodbilling:latest > foodbilling_latest.tar
       - persist_to_workspace:
           root: ~/project
