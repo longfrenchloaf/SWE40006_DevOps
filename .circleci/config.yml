@@ -4,6 +4,7 @@ executors:
   docker-executor:
     docker:
       - image: cimg/base:stable
+    working_directory: ~/project
 
 jobs:
   build:
@@ -12,49 +13,52 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Docker Build
-          command: docker build -t $ACR_NAME.azurecr.io/foodbilling:latest -f backend/Dockerfile .
+          name: Build Docker image
+          command: |
+            docker build -t foodbilling:latest -f templates/Dockerfile .
+            docker save foodbilling:latest > foodbilling_latest.tar
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - foodbilling_latest.tar
 
   test:
     executor: docker-executor
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
       - run:
-          name: Run Tests
-          command: echo "Run your Selenium or unit tests here"
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
+      - run:
+          name: Run tests
+          command: docker run --rm foodbilling:latest python program_test.py
 
+          command: echo "Run your Selenium or integration tests here"
   push:
     executor: docker-executor
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/project
       - setup_remote_docker
       - run:
-          name: Login and Push
-          command: |
-            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
-            docker push $ACR_NAME.azurecr.io/foodbilling:latest
-
-  deploy:
-    executor: docker-executor
-    steps:
-      - setup_remote_docker
+          name: Load Docker image
+          command: docker load -i ~/project/foodbilling_latest.tar
       - run:
-          name: Deploy Container from ACR
-          command: |
-            docker run -d \
-              -p ${APP_HOST_PORT}:${APP_CONTAINER_PORT} \
-              -e DB_HOST=${DB_HOST_FQDN} \
-              -e DB_PORT=5432 \
-              -e DB_NAME=${DB_NAME_SUGGESTION} \
-              -e DB_USER=${DB_USER_FROM_TF_VAR} \
-              -e DB_PASSWORD=${DB_PASSWORD_FROM_TF_VAR} \
-              --restart always \
-              --name myapp_container \
-              ${ACR_IMAGE_FULL_PATH}
+          name: Docker Login
+          command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+      - run:
+          name: Docker Push
+          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+      - run:
+          name: Push Docker Image
+          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
 
 workflows:
-  version: 2
-  build_test_deploy:
+  build_test_push:
     jobs:
       - build
       - test:
@@ -63,6 +67,3 @@ workflows:
       - push:
           requires:
             - test
-      - deploy:
-          requires:
-            - push
