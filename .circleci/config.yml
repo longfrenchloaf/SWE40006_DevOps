@@ -94,6 +94,11 @@ jobs:
             kubectl apply -f k8s/backend-service.yaml
             kubectl apply -f k8s/frontend-deployment.yaml
             kubectl apply -f k8s/frontend-service.yaml
+      - run:
+        name: Restart Deployments to Pick Up Changes
+        command: |
+          kubectl rollout restart deployment backend-deployment
+          kubectl rollout restart deployment frontend-deployment
 
 workflows:
   build_test_push:
