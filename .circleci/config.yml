@@ -1,0 +1,116 @@
+version: 2.1
+
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+
+jobs:
+  build:
+    executor: docker-executor
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker Compose services
+          command: |
+            docker-compose build
+            docker save swe40006_devops-backend:latest -o backend.tar
+            docker save swe40006_devops-frontend:latest -o frontend.tar
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - backend.tar
+            - frontend.tar
+
+  test:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
+      - run:
+          name: Start services with docker-compose
+          command: docker-compose up -d
+      - run:
+          name: Run integration tests
+          command: echo "Run your Selenium or API tests here"
+
+  push:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+
+            docker load -i ~/project/frontend.tar
+            docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+      - run:
+          name: Push backend to ACR
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+      - run:
+          name: Push frontend to ACR
+          command: |
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+
+  deploy:
+    executor: docker-executor
+    steps:
+      - checkout
+      - run:
+          name: Install Azure CLI
+          command: |
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+            KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
+              echo "Installing kubectl version $KUBECTL_VERSION"
+              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              sudo mv kubectl /usr/local/bin/kubectl
+      - run:
+          name: Login to Azure and set AKS credentials
+          command: |
+            az login --service-principal -u $AZURE_SP_APP_ID -p $AZURE_SP_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az aks get-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" --overwrite-existing
+      - run:
+          name: Deploy backend and frontend to AKS
+          command: |
+            kubectl apply -f k8s/db-secret.yaml
+            kubectl apply -f k8s/backend-deployment.yaml
+            kubectl apply -f k8s/backend-service.yaml
+            kubectl apply -f k8s/frontend-deployment.yaml
+            kubectl apply -f k8s/frontend-service.yaml
+      - run:
+          name: Restart Deployments to Pick Up Changes
+          command: |
+            kubectl rollout restart deployment backend-deployment
+            kubectl rollout restart deployment frontend-deployment
+
+workflows:
+  build_test_push:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - push:
+          requires:
+            - test
+      - deploy:
+          requires:
+            - push
