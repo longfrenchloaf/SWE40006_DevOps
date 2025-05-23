@@ -19,9 +19,18 @@ spec:
             - containerPort: 5000
           env:
             - name: DB_HOST
-              value: "db-service"
+              value: "myapp-pgflex.postgres.database.azure.com"  # or "db-service" if using an internal service name
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "postgres"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: db-secrets
                   key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: DB_PASSWORD
