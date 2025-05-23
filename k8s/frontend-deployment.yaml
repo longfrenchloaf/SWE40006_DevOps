@@ -18,10 +18,5 @@ spec:
           ports:
             - containerPort: 5000
           env:
-            - name: DB_HOST
-              value: "db-service"
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: db-secrets
-                  key: DB_USER
+            - name: REACT_APP_API_URL
+              value: "http://backend-service"
