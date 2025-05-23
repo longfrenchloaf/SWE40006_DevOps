@@ -26,6 +26,7 @@ services:
       DB_NAME: cafe
       DB_USER: admin
       DB_PASSWORD: admin123
+      DB_SSLMODE: disable  
     volumes:
       - ./backend:/app
       # optionally mount templates for dev, e.g.:

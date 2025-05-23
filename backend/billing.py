@@ -22,6 +22,7 @@ def get_menu_items():
         db_user = os.getenv("DB_USER")
         db_password = os.getenv("DB_PASSWORD")
         db_port = os.getenv("DB_PORT", "5432")
+        ssl_mode = os.getenv("DB_SSLMODE", "disable")  # default to disable if not set
 
         app.logger.info(f"Attempting DB connection: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}")
 
@@ -32,7 +33,7 @@ def get_menu_items():
             password=db_password,
             port=db_port,
             connect_timeout=10,
-            sslmode=os.getenv("DB_SSLMODE", "disable")  # default to disable locally
+            sslmode=ssl_mode
         )
         app.logger.info("DB connection successful!")
 
