@@ -14,7 +14,10 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: swe40006_devops-backend:latest      
     container_name: billing_backend
     depends_on:
       - db
@@ -23,17 +26,23 @@ services:
       DB_NAME: cafe
       DB_USER: admin
       DB_PASSWORD: admin123
+      DB_SSLMODE: disable  
     volumes:
       - ./backend:/app
+      # optionally mount templates for dev, e.g.:
+      - ./templates:/app/templates:ro
     ports:
       - "5000:5000"
     command: ["python", "billing.py"]
 
   frontend:
-    build: ./templates
+    build:
+      context: ./templates
+      dockerfile: Dockerfile
+    image: swe40006_devops-frontend:latest     
     container_name: html_frontend
     ports:
-      - "8000:8000"
+      - "8080:80"
     depends_on:
       - backend
 
