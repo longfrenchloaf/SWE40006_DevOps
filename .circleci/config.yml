@@ -25,20 +25,27 @@ jobs:
             - frontend.tar
 
   run_ui_tests:
-    docker:
-      - image: "swe40006billingacr.azurecr.io/food-billing-selenium-tests:<tag>" # Replace <tag> with actual tag or use a parameter
-        # Ensure ACR credentials are correctly configured in CircleCI
+    executor: docker-executor
     steps:
       - checkout
+      - setup_remote_docker
+      - attach_workspace:
+          at: ~/project
+
       - run:
-          name: Execute Automated UI Tests
-          working_directory: /app
-          command: python -m pytest test_food_billing_ui.py --junitxml=test-results.xml
-          environment:
-            APP_URL: ${APP_TO_TEST_URL}
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
+
+      - run:
+          name: Build and Run UI Test Environment
+          command: |
+            docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from selenium_tests
+
       - store_test_results:
           name: Store Test Results Report
-          path: /app/test-results.xml
+          path: ./test-results/test-results.xml
 
   push:
     executor: docker-executor
