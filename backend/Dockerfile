@@ -1,31 +1,14 @@
-# Use official Python slim image
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Install system dependencies required for psycopg2
-RUN apt-get update && apt-get install -y \
-    gcc libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
 WORKDIR /app
 
-# Copy your project files
-COPY backend/ .
-
-COPY templates/ templates/
-
-COPY static/ static/
-
 # Install dependencies
-RUN pip install --upgrade pip
+COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Expose Flask port
-EXPOSE 5000
+# Copy all backend source code inside backend/
+COPY . .
 
-# Set default command (can be changed)
+# Expose port and default command
+EXPOSE 5000
 CMD ["python", "billing.py"]
