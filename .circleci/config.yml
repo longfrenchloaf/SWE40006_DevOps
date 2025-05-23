@@ -39,9 +39,9 @@ jobs:
             docker load -i ~/project/frontend.tar
 
       - run:
-        name: Login to Azure Container Registry
-        command: |
-          echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+          name: Login to Azure Container Registry
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
 
       - run:
           name: Build and Run UI Test Environment
@@ -50,7 +50,7 @@ jobs:
 
       - store_test_results:
           name: Store Test Results Report
-          path: ./test-results/test-results.xml
+          path: ./test-results
 
   push:
     executor: docker-executor
