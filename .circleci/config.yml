@@ -39,6 +39,11 @@ jobs:
             docker load -i ~/project/frontend.tar
 
       - run:
+        name: Login to Azure Container Registry
+        command: |
+          echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+
+      - run:
           name: Build and Run UI Test Environment
           command: |
             docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from selenium_tests
