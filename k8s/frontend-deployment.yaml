@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: youracrname.azurecr.io/swe40006_devops-frontend:latest
+          image: swe40006billingacr.azurecr.io/swe40006_devops-frontend:latest
           ports:
             - containerPort: 5000
           env:
