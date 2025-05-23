@@ -79,7 +79,7 @@ jobs:
       - run:
           name: Login to Azure and set AKS credentials
           command: |
-            az login --service-principal -u $AZURE_USERNAME -p $AZURE_PASSWORD --tenant $AZURE_TENANT
+            az login --service-principal -u $AZURE_USERNAME -p $AZURE_PASSWORD --tenant $AZURE_TENANT_ID
             az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
       - run:
           name: Deploy backend and frontend to AKS
