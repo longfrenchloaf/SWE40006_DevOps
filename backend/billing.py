@@ -32,7 +32,7 @@ def get_menu_items():
             password=db_password,
             port=db_port,
             connect_timeout=10,
-            sslmode='require' # Often required for Azure PostgreSQL
+            sslmode=os.getenv("DB_SSLMODE", "disable")  # default to disable locally
         )
         app.logger.info("DB connection successful!")
 
