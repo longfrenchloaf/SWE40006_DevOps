@@ -31,7 +31,7 @@
     <script>
     async function loadMenu() {
         try {
-            const response = await fetch("http://backend-service:5000/menu");
+            const response = await fetch("/menu");
             const items = await response.json();
             const container = document.getElementById("menu-container");
 
@@ -125,7 +125,7 @@
         const applyDiscount = document.getElementById("apply_discount").checked;
 
         try {
-            const response = await fetch("http://backend-service:5000/billing", {
+            const response = await fetch("/billing", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ items, apply_discount: applyDiscount })
