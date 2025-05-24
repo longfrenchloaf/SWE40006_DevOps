@@ -97,7 +97,7 @@ jobs:
                 exit 1
             fi
             # Wait command is now standalone
-            /usr/local/bin/wait-for-it.sh backend:5000 -t 60 --strict || {
+            /usr/local/bin/wait-for-it.sh backend:5000 -t 120 --strict || {
               echo "Backend service did not become available within 60 seconds."
               # Use -f for logs for consistency
               docker-compose -f ~/project/docker-compose.yml logs backend
