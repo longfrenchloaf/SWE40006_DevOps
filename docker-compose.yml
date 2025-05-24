@@ -10,36 +10,37 @@ services:
       POSTGRES_PASSWORD: admin123
     ports:
       - "5432:5432"
+    # Correct volume mount within the service
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck: # <-- Add this section
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"] # Checks if DB is ready for connections
-      interval: 5s # Check every 5 seconds
-      timeout: 3s # Timeout after 3 seconds if check doesn't respond
-      retries: 10 # Try 10 times before considering unhealthy (50 seconds total check time)
-      start_period: 10s # Give the container 10 seconds to start before first check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
-      context: .          # Root of project, so templates and backend are visible
+      context: .
       dockerfile: backend/Dockerfile
-    image: swe40006_devops-backend:latest      
+    image: swe40006_devops-backend:latest
     container_name: billing_backend
+    # Consolidated depends_on with the condition
     depends_on:
-      - db
+      db: # Must match your DB service name
+        condition: service_healthy # Waits for DB healthcheck to pass
     environment:
-      DB_HOST: db
+      DB_HOST: db # This must match the DB service name
       DB_NAME: cafe
       DB_USER: admin
       DB_PASSWORD: admin123
-      DB_SSLMODE: disable  
+      DB_SSLMODE: disable # Good, disabling SSL for local/CI DB connection
     ports:
       - "5000:5000"
-    depends_on: # <-- Ensure this is here
-      db: # <-- Must match your DB service name
-        condition: service_healthy # <-- Waits for DB healthcheck to pass
-    healthcheck: # <-- Add backend healthcheck
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"] # Checks if backend is responding on its port
+    healthcheck:
+      # Checks if backend is responding on its port
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,12 +50,19 @@ services:
     build:
       context: ./templates
       dockerfile: Dockerfile
-    image: swe40006_devops-frontend:latest     
+    image: swe40006_devops-frontend:latest
     container_name: html_frontend
     ports:
-      - "8080:80"
+      - "8080:80" # Assuming your frontend serves on port 80 internally
     depends_on:
-      - backend
+      # Using simple depends_on for frontend as it likely just needs the backend to be running,
+      # not necessarily passing a specific healthcheck unless the frontend itself has one.
+      # If frontend relies on backend APIs, adding backend healthcheck condition here is better.
+      # depends_on:
+      #  backend:
+      #    condition: service_healthy
+      - backend # Simple dependency on backend container existing/running
 
+# Single, top-level volumes definition
 volumes:
-  pgdata:
+  pgdata: # Defining the named volume pgdata
