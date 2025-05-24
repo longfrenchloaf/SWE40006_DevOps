@@ -60,22 +60,39 @@ jobs:
       # IMPORTANT: Replace '5432' with the internal port your DB container listens on
       # IMPORTANT: Update 'docker-compose logs database_service_name' if DB service name is different
       - run:
-          name: Wait for Database Service
-          command: |
-            # Download wait-for-it.sh - only need to do this once, but having it here is fine if steps are isolated
-            curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
-            chmod +x /usr/local/bin/wait-for-it.sh
+                name: Wait for Database Service (Debug)
+                command: |
+                  curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
+                  chmod +x /usr/local/bin/wait-for-it.sh
 
-            # Replace 'database_service_name' with 'db' and '5432' remains the port
-            echo "Waiting for database service at db:5432..."
-            # IMPORTANT: Ensure the -f path ~/project/docker-compose.yml is correct based on your ls -al output
-            /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict || {
-              echo "Database service did not become available within 60 seconds."
-              # Replace 'database_service_name' with 'db' for logs
-              docker-compose -f ~/project/docker-compose.yml logs db # Using -f here
-              exit 1 # Fail the step if DB wait fails
-            }
-            echo "Database service is available."
+                  echo "Waiting for database service at db:5432..."
+
+                  # Try waiting...
+                  /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict
+
+                  # Store the exit code of the wait-for-it command
+                  wait_exit_code=$?
+
+                  if [ $wait_exit_code -ne 0 ]; then
+                    echo "wait-for-it.sh failed with exit code $wait_exit_code. Attempting to capture DB logs..."
+
+                    # --- Add debug checks before running docker-compose logs ---
+                    echo "Current directory: $(pwd)"
+                    echo "Contents of ~/project:"
+                    ls -al ~/project
+                    echo "--- End Contents of ~/project ---"
+                    # --- End debug checks ---
+
+                    # Now attempt to get logs. If this fails, the previous ls -al should show why.
+                    # IMPORTANT: Ensure the -f path ~/project/docker-compose.yml is correct based on your ls -al output
+                    docker-compose -f ~/project/docker-compose.yml logs db
+
+                    echo "Database service did not become available within 60 seconds."
+                    exit 1 # Fail the step
+                  else
+                    echo "wait-for-it.sh succeeded."
+                    echo "Database service is available."
+                  fi
       # --- End Wait for Database Service ---
 
       # --- Wait for Backend Service ---
