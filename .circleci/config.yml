@@ -1,3 +1,11 @@
+version: 2.1
+
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+
 jobs:
   build:
     executor: docker-executor
@@ -71,7 +79,7 @@ jobs:
               --shm-size="2g" \
               # --cpus="1.5" # Uncomment if you need CPU limits
               # --memory="2g" # Uncomment if you need Memory limits
-              -e APP_URL="http://backend:5000/" \
+              -e APP_URL="http://frontend:5000/" \
               food-billing-selenium-tests:latest
 
       # --- End of new steps for Selenium tests ---
