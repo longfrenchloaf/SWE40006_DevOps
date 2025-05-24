@@ -5,7 +5,7 @@ from flask_cors import CORS
 import logging
 
 app = Flask(__name__, static_folder='templates/static', static_url_path='/static')
-
+app.logger.setLevel(logging.INFO)
 CORS(app)
 
 @app.route('/static/<path:filename>')
@@ -15,10 +15,12 @@ def custom_static(filename):
 @app.route('/')  # This handles requests to the root URL (e.g., http://your_ip:5000/)
 def home():
     # return "Hello from Flask!" # For a quick test
+    app.logger.info("Serving menu.html")
     return render_template('menu.html') # If main.html is your homepage
 
 @app.route('/cart')
 def cart_page():
+    app.logger.info("Serving cart.html") # Add this log
     return render_template('cart.html')
 
 def get_menu_items():
@@ -70,11 +72,13 @@ def get_menu_items():
 
 @app.route("/menu", methods=["GET"])
 def menu():
+    app.logger.info("Received GET request for /menu") # Add this log
     items = get_menu_items()
     return jsonify(items)
 
 @app.route("/billing", methods=["POST"])
 def billing():
+    app.logger.info("Received POST request for /billing") # Add this log
     data = request.get_json()
     items = data.get("items", [])
     apply_discount = data.get("apply_discount", False)
@@ -91,4 +95,5 @@ def billing():
     return jsonify({"total": round(total, 2)})
 
 if __name__ == "__main__":
+    app.logger.info("Starting Flask development server.") # Keep this log
     app.run(host="0.0.0.0", port=5000, debug=True)
