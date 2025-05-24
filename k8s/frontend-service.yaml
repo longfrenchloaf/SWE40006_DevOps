@@ -3,12 +3,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  # namespace: default # (optional, will default if not set)
 spec:
   selector:
-    app: frontend
-  type: NodePort   # <--- Changed from LoadBalancer to NodePort
+    app: frontend # Make sure this matches your frontend deployment's labels
   ports:
     - protocol: TCP
-      port: 80         # The internal cluster IP port (used for communication within the cluster)
-      targetPort: 80   # The port your frontend container is listening on
-      # nodePort: 30000-32767 # Optional: Kubernetes will assign a port in this range if you omit it
+      port: 80         # The internal cluster IP port
+      targetPort: 80   # The port your frontend *container* is listening on
+  type: LoadBalancer # <--- Change this to LoadBalancer

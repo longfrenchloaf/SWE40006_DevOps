@@ -1,3 +1,4 @@
+# k8s/frontend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,7 +17,10 @@ spec:
         - name: frontend
           image: swe40006billingacr.azurecr.io/swe40006_devops-frontend:latest
           ports:
-            - containerPort: 5000
+            # If Nginx is listening on 80, keep this at 80 to match targetPort in service.
+            # If your app code actually listens on 5000, fix Dockerfile/nginx config to listen on 80,
+            # or change service targetPort to 5000. Let's assume 80 is correct based on logs.
+            - containerPort: 80 # <--- Recommend changing this to 80 if Nginx listens on 80
           env:
             - name: DB_HOST
               value: "db-service"
@@ -25,3 +29,6 @@ spec:
                 secretKeyRef:
                   name: db-secrets
                   key: DB_USER
+            # Add this variable for the backend API URL
+            - name: BACKEND_API_URL # <--- Name this variable as expected by your frontend code
+              value: "http://backend-service:5000" # <--- Use the backend service internal name and port
