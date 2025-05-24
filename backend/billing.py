@@ -1,11 +1,15 @@
 import os
 import psycopg2
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder='templates', static_url_path='/static')
 
 CORS(app)
+
+@app.route('/static/<path:filename>')
+def custom_static(filename):
+    return send_from_directory('templates/static', filename)
 
 @app.route('/')  # This handles requests to the root URL (e.g., http://your_ip:5000/)
 def home():
