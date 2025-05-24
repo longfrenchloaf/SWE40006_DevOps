@@ -6,7 +6,7 @@ executors:
       - image: cimg/python:3.11
     working_directory: ~/project
 
-jobs: 
+jobs:
   build:
     executor: docker-executor
     steps:
@@ -43,26 +43,15 @@ jobs:
           name: Run integration tests
           command: echo "Run your Selenium or API tests here"
 
-  push: 
+  push:
     executor: docker-executor
     steps:
       - checkout
       - attach_workspace:
           at: ~/project
       - setup_remote_docker
-
-      # --- The debug step for ACR_NAME should be here ---
       - run:
-          name: Debug ACR_NAME variable
-          command: |
-            echo "--- Debugging ACR_NAME ---"
-            echo "Value of ACR_NAME: -->${ACR_NAME}<--"
-            echo "Using full registry name: -->${ACR_NAME}.azurecr.io<--"
-            echo "--------------------------"
-      # --------------------------------------------
-
-      - run:
-          name: Load Docker images and Tag
+          name: Load Docker images
           command: |
             docker load -i ~/project/backend.tar
             docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
@@ -79,7 +68,7 @@ jobs:
           command: |
             docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
 
-  deploy: # <--- This job must also be aligned with 'build' and 'test'
+  deploy:
     executor: docker-executor
     steps:
       - checkout
@@ -102,18 +91,16 @@ jobs:
           name: Deploy backend and frontend to AKS
           command: |
             kubectl apply -f k8s/db-secret.yaml
-            kubectl apply -f k8s/backend-service.yaml
-            kubectl apply -f k8s/frontend-service.yaml
             kubectl apply -f k8s/backend-deployment.yaml
+            kubectl apply -f k8s/backend-service.yaml
             kubectl apply -f k8s/frontend-deployment.yaml
-            kubectl apply -f k8s/ingress.yaml
+            kubectl apply -f k8s/frontend-service.yaml
       - run:
           name: Restart Deployments to Pick Up Changes
           command: |
             kubectl rollout restart deployment backend-deployment
             kubectl rollout restart deployment frontend-deployment
 
-# The workflows section seems correctly structured and is at the top level
 workflows:
   build_test_push:
     jobs:
