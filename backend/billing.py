@@ -3,7 +3,8 @@ import psycopg2
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='templates', static_url_path='/static')
+
 CORS(app)
 
 @app.route('/')  # This handles requests to the root URL (e.g., http://your_ip:5000/)
