@@ -66,7 +66,7 @@ jobs:
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
-              -e APP_URL="http://backend:5000/" \ # Adjust service name and port if needed
+              -e APP_URL="http://backend:5000/" \
               food-billing-selenium-tests:latest
 
       # --- End of new steps for Selenium tests ---
