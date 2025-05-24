@@ -2,13 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
+# Copy requirements and install dependencies
+COPY backend/requirements.txt .
 RUN pip install -r requirements.txt
 
-# Copy all backend source code inside backend/
-COPY . .
+# Copy backend source code
+COPY backend/ .
 
-# Expose port and default command
+# Copy templates folder
+COPY templates/ ./templates/
+
 EXPOSE 5000
+
 CMD ["python", "billing.py"]
