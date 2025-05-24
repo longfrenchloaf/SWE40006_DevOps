@@ -54,9 +54,7 @@ jobs:
           name: Load Docker images
           command: |
             docker load -i ~/project/backend.tar
-            if [ -z "$ACR_NAME" ]; then
-              echo "ACR_NAME environment variable is not set. Exiting." && exit 1
-            fi
+            if [ -z "$ACR_NAME" ]; then echo "ACR_NAME is not set"; exit 1; fi
             docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
 
             docker load -i ~/project/frontend.tar
