@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.11
     working_directory: ~/project
 
 jobs:
@@ -13,14 +13,16 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Build Docker image
+          name: Build Docker Compose services
           command: |
-            docker build -t foodbilling:latest -f backend/Dockerfile .
-            docker save foodbilling:latest > foodbilling_latest.tar
+            docker-compose build
+            docker save swe40006_devops-backend:latest -o backend.tar
+            docker save swe40006_devops-frontend:latest -o frontend.tar
       - persist_to_workspace:
           root: ~/project
           paths:
-            - foodbilling_latest.tar
+            - backend.tar
+            - frontend.tar
 
   test:
     executor: docker-executor
@@ -30,14 +32,17 @@ jobs:
           at: ~/project
       - setup_remote_docker
       - run:
-          name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
       - run:
-          name: Run tests
-          command: docker run --rm foodbilling:latest python program_test.py
+          name: Start services with docker-compose
+          command: docker-compose up -d
       - run:
-          name: Selenium/Integration tests placeholder
-          command: echo "Run your Selenium or integration tests here"
+          name: Run integration tests
+          command: echo "Run your Selenium or API tests here"
+
   push:
     executor: docker-executor
     steps:
@@ -46,17 +51,58 @@ jobs:
           at: ~/project
       - setup_remote_docker
       - run:
-          name: Load Docker image
-          command: docker load -i ~/project/foodbilling_latest.tar
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            if [ -z "$ACR_NAME" ]; then
+              echo "ACR_NAME environment variable is not set. Exiting." && exit 1
+            fi
+            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+
+            docker load -i ~/project/frontend.tar
+            docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
       - run:
-          name: Docker Login
-          command: echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+          name: Push backend to ACR
+          command: |
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
       - run:
-          name: Docker Push
-          command: docker tag foodbilling:latest $ACR_NAME.azurecr.io/foodbilling:latest
+          name: Push frontend to ACR
+          command: |
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+
+  deploy:
+    executor: docker-executor
+    steps:
+      - checkout
       - run:
-          name: Push Docker Image
-          command: docker push $ACR_NAME.azurecr.io/foodbilling:latest
+          name: Install Azure CLI
+          command: |
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+            KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
+              echo "Installing kubectl version $KUBECTL_VERSION"
+              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              sudo mv kubectl /usr/local/bin/kubectl
+      - run:
+          name: Login to Azure and set AKS credentials
+          command: |
+            az login --service-principal -u $AZURE_SP_APP_ID -p $AZURE_SP_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az aks get-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" --overwrite-existing
+      - run:
+          name: Deploy backend and frontend to AKS
+          command: |
+            kubectl apply -f k8s/db-secret.yaml
+            kubectl apply -f k8s/backend-deployment.yaml
+            kubectl apply -f k8s/backend-service.yaml
+            kubectl apply -f k8s/frontend-deployment.yaml
+            kubectl apply -f k8s/frontend-service.yaml
+      - run:
+          name: Restart Deployments to Pick Up Changes
+          command: |
+            kubectl rollout restart deployment backend-deployment
+            kubectl rollout restart deployment frontend-deployment
 
 workflows:
   build_test_push:
@@ -68,3 +114,6 @@ workflows:
       - push:
           requires:
             - test
+      - deploy:
+          requires:
+            - push
