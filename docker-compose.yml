@@ -34,6 +34,7 @@ services:
       DB_USER: admin
       DB_PASSWORD: admin123
       DB_SSLMODE: disable
+      DB_PORT: 5432
     ports:
       - "5000:5000"
     healthcheck:
