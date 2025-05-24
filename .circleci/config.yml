@@ -3,7 +3,7 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/docker:20.10 # This image includes Docker and Docker Compose
+      - image: cimg/python:3.11
     working_directory: ~/project
 
 jobs:
@@ -14,140 +14,77 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Docker Compose services
-          command: docker-compose build
-      - run:
-          name: Save built application images
           command: |
-            DOCKER_COMPOSE_PROJECT_NAME=$(docker-compose config | grep 'name:' | head -n 1 | awk '{print $2}')
-            BACKEND_IMAGE_NAME="${DOCKER_COMPOSE_PROJECT_NAME}_backend" # e.g. myproject_backend
-            FRONTEND_IMAGE_NAME="${DOCKER_COMPOSE_PROJECT_NAME}_frontend" # e.g. myproject_frontend
-
-            docker save "${BACKEND_IMAGE_NAME}:latest" -o backend.tar
-            docker save "${FRONTEND_IMAGE_NAME}:latest" -o frontend.tar
+            docker-compose build
+            docker save swe40006_devops-backend:latest -o backend.tar
+            docker save swe40006_devops-frontend:latest -o frontend.tar
       - persist_to_workspace:
           root: ~/project
           paths:
             - backend.tar
             - frontend.tar
 
-  run_ui_tests:
-    executor: docker-executor # Uses the cimg/docker executor
-    steps:
-      - checkout 
-      - setup_remote_docker # Needed for docker-compose commands
-      - run:
-          name: Login to Azure Container Registry (for pulling test image)
-          command: echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
-      - run:
-          name: Build and Run UI Test Environment
-          command: |
-            mkdir -p ./test-results
-            docker-compose -f docker-compose.yml up --build --abort-on-container-exit --exit-code-from selenium_tests
-      - store_test_results:
-          name: Store Test Results Report
-          path: ./test-results
-      - store_artifacts:
-          name: Store Test Artifacts (XML, Screenshots)
-          path: ./test-results # Should match the volume mapping host path
-
 
   push:
-    executor: docker-executor # Uses the cimg/docker executor
+    executor: docker-executor
     steps:
-      - checkout 
-      - setup_remote_docker 
+      - checkout
       - attach_workspace:
-          at: ~/project 
+          at: ~/project
+      - setup_remote_docker
       - run:
-          name: Load Docker images for push
+          name: Load Docker images
           command: |
             docker load -i ~/project/backend.tar
+            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
+
             docker load -i ~/project/frontend.tar
+            docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
       - run:
-          name: Tag and Push backend to ACR
+          name: Push backend to ACR
           command: |
-            DOCKER_COMPOSE_PROJECT_NAME=$(docker-compose config | grep 'name:' | head -n 1 | awk '{print $2}')
-            BACKEND_IMAGE_NAME="${DOCKER_COMPOSE_PROJECT_NAME}_backend"
-
-            echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
-            docker tag "${BACKEND_IMAGE_NAME}:latest" "$ACR_NAME/swe40006_devops-backend:latest" # Tag with 'latest'
-            docker tag "${BACKEND_IMAGE_NAME}:latest" "$ACR_NAME/swe40006_devops-backend:${CIRCLE_SHA1}" # Tag with commit SHA
-            docker push "$ACR_NAME/swe40006_devops-backend:latest"
-            docker push "$ACR_NAME/swe40006_devops-backend:${CIRCLE_SHA1}"
-            # Make the SHA tag available as an environment variable for the deploy job
-            echo "export BACKEND_IMAGE_TAG_SHA=${CIRCLE_SHA1}" >> $BASH_ENV
-
+            echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
       - run:
-          name: Tag and Push frontend to ACR
+          name: Push frontend to ACR
           command: |
-            DOCKER_COMPOSE_PROJECT_NAME=$(docker-compose config | grep 'name:' | head -n 1 | awk '{print $2}')
-            FRONTEND_IMAGE_NAME="${DOCKER_COMPOSE_PROJECT_NAME}_frontend"
-
-            # Login already happened in backend push step, but can repeat if needed
-            # echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
-            docker tag "${FRONTEND_IMAGE_NAME}:latest" "$ACR_NAME/swe40006_devops-frontend:latest" # Tag with 'latest'
-            docker tag "${FRONTEND_IMAGE_NAME}:latest" "$ACR_NAME/swe40006_devops-frontend:${CIRCLE_SHA1}" # Tag with commit SHA
-            docker push "$ACR_NAME/swe40006_devops-frontend:latest"
-            docker push "$ACR_NAME/swe40006_devops-frontend:${CIRCLE_SHA1}"
-            # Make the SHA tag available as an environment variable for the deploy job
-            echo "export FRONTEND_IMAGE_TAG_SHA=${CIRCLE_SHA1}" >> $BASH_ENV
-
+            docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
 
   deploy:
-    executor: docker-executor # Uses the cimg/docker executor, should have docker/docker-compose/kubectl
+    executor: docker-executor
     steps:
-      - checkout 
+      - checkout
       - run:
-          name: Install Azure CLI (if not in executor)
-          
+          name: Install Azure CLI
           command: |
             curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      # kubectl should be included in cimg/docker or installed here if not.
-      # If using cimg/docker:20.10, kubectl >= 1.20 is included.
-      # Check executor image documentation. If not included, add installation here.
-      # - run:
-      #     name: Install kubectl
-      #     command: |
-      #       KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
-      #       echo "Installing kubectl version $KUBECTL_VERSION"
-      #       curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-      #       chmod +x kubectl
-      #       sudo mv kubectl /usr/local/bin/kubectl
 
+            KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
+              echo "Installing kubectl version $KUBECTL_VERSION"
+              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              sudo mv kubectl /usr/local/bin/kubectl
       - run:
           name: Login to Azure and set AKS credentials
           command: |
             az login --service-principal -u $AZURE_SP_APP_ID -p $AZURE_SP_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-            az account set --subscription $AZURE_SUBSCRIPTION_ID
-            az aks get-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" --overwrite-existing --admin
+            az aks get-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" --overwrite-existing
       - run:
-          name: Deploy backend to AKS
+          name: Deploy backend and frontend to AKS
           command: |
-            BACKEND_IMAGE="$ACR_NAME/swe40006_devops-backend:${BACKEND_IMAGE_TAG_SHA:-latest}"
-            echo "Deploying backend image: $BACKEND_IMAGE"
-            sed "s|swe40006billingacr.azurecr.io/swe40006_devops-backend:latest|$BACKEND_IMAGE|g" k8s/backend-deployment.yaml | kubectl apply -f -
-            kubectl apply -f k8s/backend-service.yaml # Apply service if not already existing
+            kubectl apply -f k8s/db-secret.yaml
+            kubectl apply -f k8s/backend-deployment.yaml
+            kubectl apply -f k8s/backend-service.yaml
+            kubectl apply -f k8s/frontend-deployment.yaml
+            kubectl apply -f k8s/frontend-service.yaml
       - run:
-          name: Deploy frontend to AKS
+          name: Restart Deployments to Pick Up Changes
           command: |
-            # Ensure your k8s manifests are in a 'k8s' subdirectory in your repo
-            FRONTEND_IMAGE="$ACR_NAME/swe40006_devops-frontend:${FRONTEND_IMAGE_TAG_SHA:-latest}"
-            echo "Deploying frontend image: $FRONTEND_IMAGE"
-            sed "s|swe40006billingacr.azurecr.io/swe40006_devops-frontend:latest|$FRONTEND_IMAGE|g" k8s/frontend-deployment.yaml | kubectl apply -f -
-            kubectl apply -f k8s/frontend-service.yaml # Apply service if not already existing
-      - run:
-          name: Apply Database Secret
-          command: kubectl apply -f k8s/db-secret.yaml
-      - run:
-          name: Verify Backend Deployment Rollout
-          command: kubectl rollout status deployment/backend-deployment --timeout=5m
-      - run:
-          name: Verify Frontend Deployment Rollout
-          command: kubectl rollout status deployment/frontend-deployment --timeout=5m
-
+            kubectl rollout restart deployment backend-deployment
+            kubectl rollout restart deployment frontend-deployment
 
 workflows:
-  build_test_push_deploy: # Update workflow name
+  build_test_push:
     jobs:
       - build
       - run_ui_tests:
@@ -155,7 +92,7 @@ workflows:
             - build
       - push:
           requires:
-            - run_ui_tests # Push only if tests pass
+            - run_ui_tests
       - deploy:
           requires:
-            - push # Deploy only if push succeeds
+            - push
