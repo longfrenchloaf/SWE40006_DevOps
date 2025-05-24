@@ -43,7 +43,7 @@ jobs:
           name: Run integration tests
           command: echo "Run your Selenium or API tests here"
 
-  push: # <--- This job must be aligned with 'build' and 'test'
+  push: 
     executor: docker-executor
     steps:
       - checkout
