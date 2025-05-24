@@ -37,16 +37,7 @@ jobs:
           at: ~/project
       - setup_remote_docker
 
-      # --- NEW Step to Install wait-for-it.sh ---
-      # This step runs and fails independently if the download/chmod fails
-      - run:
-          name: Install wait-for-it.sh
-          command: |
-            sudo curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
-            sudo chmod +x /usr/local/bin/wait-for-it.sh
-      # --- END NEW Step ---
-
-      # ls -al debug step from before is helpful, keep it for now
+      # ls -al debug step - keep or remove as needed
       - run:
           name: List files in test working directory
           command: ls -al ~/project
@@ -57,56 +48,19 @@ jobs:
             docker load -i ~/project/backend.tar
             docker load -i ~/project/frontend.tar
 
+      # --- Start and WAIT for services using Healthchecks ---
+      # IMPORTANT: Ensure docker-compose.yml has healthchecks defined for 'db' and 'backend'
+      # IMPORTANT: Ensure backend service in docker-compose.yml has depends_on: db
       - run:
-          name: Start services with docker-compose
-          # ls -al confirmed docker-compose.yml is at root, so -f is optional but harmless
-          command: docker-compose -f ~/project/docker-compose.yml up -d
-
-      # --- Wait for Database Service (Cleaned up) ---
-      # Corrected service name ('db') and internal port (5432)
-      # Removed curl/chmod as they are now in a separate step
-      - run:
-          name: Wait for Database Service
-          command: |
-            echo "Waiting for database service at db:5432..."
-            # Check if wait-for-it.sh exists (added for robustness)
-            if [ ! -f "/usr/local/bin/wait-for-it.sh" ]; then
-                echo "Error: wait-for-it.sh not found in /usr/local/bin/. Install step failed?"
-                exit 1
-            fi
-            # Wait command is now standalone
-            /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict || {
-              echo "Database service did not become available within 60 seconds."
-              # Use -f for logs for consistency (ls -al confirmed the path)
-              docker-compose -f ~/project/docker-compose.yml logs db
-              exit 1 # Fail the step if DB wait fails
-            }
-            echo "Database service is available."
-      # --- End Wait for Database Service ---
-
-      # --- Wait for Backend Service (Cleaned up) ---
-      # Corrected service name ('backend') and internal port (5000 - based on your Flask code)
-      # Removed curl/chmod as they are now in a separate step
-      - run:
-          name: Wait for Backend Service to Respond
-          command: |
-            echo "Waiting for backend service at backend:5000..."
-            # Check if wait-for-it.sh exists
-             if [ ! -f "/usr/local/bin/wait-for-it.sh" ]; then
-                echo "Error: wait-for-it.sh not found in /usr/local/bin/. Install step failed?"
-                exit 1
-            fi
-            # Wait command is now standalone
-            /usr/local/bin/wait-for-it.sh backend:5000 -t 120 --strict || {
-              echo "Backend service did not become available within 60 seconds."
-              # Use -f for logs for consistency
-              docker-compose -f ~/project/docker-compose.yml logs backend
-              exit 1 # Fail the step if backend wait fails
-            }
-            echo "Backend service is available."
+          name: Start services and wait for healthchecks
+          # This command will block until all services with healthchecks
+          # that the job depends on are healthy.
+          command: docker-compose -f ~/project/docker-compose.yml up -d --wait
+      # --- End Start and WAIT step ---
 
       # --- Run Integration Tests (Selenium) ---
-      # APP_URL set to http://backend:5000/ based on your Flask code serving UI from backend
+      # Now that services are healthy, tests can run
+      # IMPORTANT: Increase the Selenium WebDriverWait timeout in your test code if needed
       - run:
           name: Run integration tests (Selenium)
           command: |
@@ -116,14 +70,19 @@ jobs:
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
-              -e APP_URL="http://backend:5000/" \
+              -e APP_URL="http://backend:5000/" \ # Verify backend:5000 matches your docker-compose
               food-billing-selenium-tests:latest
 
       # --- Capture Backend Logs (Keep this!) ---
-      # Use -f for consistency
       - run:
           name: Capture Backend Logs
           command: docker-compose -f ~/project/docker-compose.yml logs backend
+          when: always # Always run this step
+
+      # Optional: Capture DB Logs on failure too
+      - run:
+          name: Capture DB Logs
+          command: docker-compose -f ~/project/docker-compose.yml logs db
           when: always # Always run this step
 
       # Optional: Add steps here to store test results or artifacts if your tests generate them

@@ -12,6 +12,14 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck: # <-- Add this section
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"] # Checks if DB is ready for connections
+      interval: 5s # Check every 5 seconds
+      timeout: 3s # Timeout after 3 seconds if check doesn't respond
+      retries: 10 # Try 10 times before considering unhealthy (50 seconds total check time)
+      start_period: 10s # Give the container 10 seconds to start before first check
+volumes:
+  pgdata: # Ensure this volume is defined at the top level if it wasn't already
 
   backend:
     build:
@@ -29,6 +37,15 @@ services:
       DB_SSLMODE: disable  
     ports:
       - "5000:5000"
+    depends_on: # <-- Ensure this is here
+      db: # <-- Must match your DB service name
+        condition: service_healthy # <-- Waits for DB healthcheck to pass
+    healthcheck: # <-- Add backend healthcheck
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"] # Checks if backend is responding on its port
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
