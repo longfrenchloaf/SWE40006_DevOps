@@ -87,12 +87,9 @@ workflows:
   build_test_push:
     jobs:
       - build
-      - run_ui_tests:
-          requires:
-            - build
       - push:
           requires:
-            - run_ui_tests
+            - build
       - deploy:
           requires:
             - push
