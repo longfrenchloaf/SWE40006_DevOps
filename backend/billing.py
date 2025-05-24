@@ -2,6 +2,7 @@ import os
 import psycopg2
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
+import logging
 
 app = Flask(__name__, static_folder='templates/static', static_url_path='/static')
 
@@ -21,16 +22,17 @@ def cart_page():
     return render_template('cart.html')
 
 def get_menu_items():
+    app.logger.info("Attempting to get menu items from DB.")
     try:
         db_host = os.getenv("DB_HOST")
         db_name = os.getenv("DB_NAME")
-        db_user = os.getenv("DB_USER")
+        db_user = os.getenv("DB_USER", "admin_fallback")
         db_password = os.getenv("DB_PASSWORD")
         db_port = os.getenv("DB_PORT", "5432")
-
-        app.logger.info(f"Attempting DB connection: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}")
         db_sslmode = os.getenv("DB_SSLMODE", "prefer") # Get from env, default to prefer
-        app.logger.info(f"DB Connect Params: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}, sslmode={db_sslmode}") # Log it
+        # Log the actual variable values right before connecting
+        app.logger.info(f"DB Connect Params (in Python): host={db_host}, dbname={db_name}, user={db_user}, port={db_port}, sslmode={db_sslmode}")
+        
         conn = psycopg2.connect(
             host=db_host,
             database=db_name,
@@ -47,6 +49,7 @@ def get_menu_items():
         rows = cur.fetchall()
         cur.close()
         conn.close()
+        app.logger.info(f"Fetched {len(rows)} menu items.")
 
         menu = []
         for row in rows:
