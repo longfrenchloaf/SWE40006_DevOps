@@ -38,20 +38,33 @@ jobs:
             docker load -i ~/project/frontend.tar
       - run:
           name: Start services with docker-compose
+          # Note: Consider using `docker-compose up --wait` if your docker-compose.yml
+          # includes healthchecks for services. This is better than sleep.
           command: docker-compose up -d
 
-      # --- Updated step for Selenium tests build ---
       - run:
           name: Build Selenium test runner image
-          # CORRECTED: Point -f flag to tests/Dockerfile
           command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
-      # --- End of updated build step ---
 
+      # --- Improved Waiting Step ---
       - run:
-          name: Wait for services to be healthy (Optional but Recommended)
+          name: Wait for Backend Service to Respond
           command: |
-            echo "Waiting for services to start..."
-            sleep 30 # Adjust as needed, or use a robust wait tool
+            # Download wait-for-it.sh
+            curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
+            chmod +x /usr/local/bin/wait-for-it.sh
+
+            # Wait for the backend service (named 'backend') on port 5000
+            # Timeout after 60 seconds (-t 60). Adjust if your app takes longer.
+            echo "Waiting for backend service at backend:5000..."
+            /usr/local/bin/wait-for-it.sh backend:5000 -t 60 --strict || {
+              echo "Backend service did not become available within 60 seconds."
+              # Capture logs before failing
+              docker-compose logs backend
+              exit 1 # Fail the step if wait-for-it fails
+            }
+            echo "Backend service is available."
+      # --- End of Improved Waiting Step ---
 
       - run:
           name: Run integration tests (Selenium)
@@ -61,13 +74,20 @@ jobs:
             echo "Running tests on network: $DC_NETWORK"
 
             # Run the test container, connecting it to the docker-compose network.
-            # and its internal port for the APP_URL.
+            # APP_URL is now confirmed to be reachable
             docker run \
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
               -e APP_URL="http://backend:5000/" \
               food-billing-selenium-tests:latest
+
+      # --- Add a step to capture backend logs on failure ---
+      # This step will run *after* the tests fail (or pass)
+      - run:
+          name: Capture Backend Logs
+          command: docker-compose logs backend
+          when: always # Always run this step, even if previous steps fail
 
       # --- End of new steps for Selenium tests ---
 
