@@ -12,10 +12,15 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
+      # ls -al debug step from before is helpful, keep it for now
+      - run:
+          name: List files in build working directory
+          command: ls -al ~/project
       - run:
           name: Build Docker Compose services
+          # ls -al confirmed docker-compose.yml is at root, so -f is optional but harmless
           command: |
-            docker-compose build
+            docker-compose -f ~/project/docker-compose.yml build
             docker save swe40006_devops-backend:latest -o backend.tar
             docker save swe40006_devops-frontend:latest -o frontend.tar
       - persist_to_workspace:
@@ -31,13 +36,20 @@ jobs:
       - attach_workspace:
           at: ~/project
       - setup_remote_docker
-      # --- NEW DEBUG STEP ---
-      # This step will show you the exact files present in ~/project
-      # after checkout and workspace attachment. LOOK AT THIS OUTPUT CAREFULLY.
+
+      # --- NEW Step to Install wait-for-it.sh ---
+      # This step runs and fails independently if the download/chmod fails
+      - run:
+          name: Install wait-for-it.sh
+          command: |
+            sudo curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
+            sudo chmod +x /usr/local/bin/wait-for-it.sh
+      # --- END NEW Step ---
+
+      # ls -al debug step from before is helpful, keep it for now
       - run:
           name: List files in test working directory
           command: ls -al ~/project
-      # --- END NEW DEBUG STEP ---
 
       - run:
           name: Load Docker images (backend/frontend)
@@ -47,74 +59,54 @@ jobs:
 
       - run:
           name: Start services with docker-compose
-          # Keeping -f here for now, as the 'stat' error occurred with this path.
-          # The ls -al output will tell us if this path is correct or why it's failing.
+          # ls -al confirmed docker-compose.yml is at root, so -f is optional but harmless
           command: docker-compose -f ~/project/docker-compose.yml up -d
 
+      # --- Wait for Database Service (Cleaned up) ---
+      # Corrected service name ('db') and internal port (5432)
+      # Removed curl/chmod as they are now in a separate step
       - run:
-          name: Build Selenium test runner image
-          command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
-
-      # --- Wait for Database Service ---
-      # IMPORTANT: Replace 'database_service_name' with the actual name of your DB service in docker-compose.yml
-      # IMPORTANT: Replace '5432' with the internal port your DB container listens on
-      # IMPORTANT: Update 'docker-compose logs database_service_name' if DB service name is different
-      - run:
-                name: Wait for Database Service (Debug)
-                command: |
-                  curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
-                  chmod +x /usr/local/bin/wait-for-it.sh
-
-                  echo "Waiting for database service at db:5432..."
-
-                  # Try waiting...
-                  /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict
-
-                  # Store the exit code of the wait-for-it command
-                  wait_exit_code=$?
-
-                  if [ $wait_exit_code -ne 0 ]; then
-                    echo "wait-for-it.sh failed with exit code $wait_exit_code. Attempting to capture DB logs..."
-
-                    # --- Add debug checks before running docker-compose logs ---
-                    echo "Current directory: $(pwd)"
-                    echo "Contents of ~/project:"
-                    ls -al ~/project
-                    echo "--- End Contents of ~/project ---"
-                    # --- End debug checks ---
-
-                    # Now attempt to get logs. If this fails, the previous ls -al should show why.
-                    # IMPORTANT: Ensure the -f path ~/project/docker-compose.yml is correct based on your ls -al output
-                    docker-compose -f ~/project/docker-compose.yml logs db
-
-                    echo "Database service did not become available within 60 seconds."
-                    exit 1 # Fail the step
-                  else
-                    echo "wait-for-it.sh succeeded."
-                    echo "Database service is available."
-                  fi
+          name: Wait for Database Service
+          command: |
+            echo "Waiting for database service at db:5432..."
+            # Check if wait-for-it.sh exists (added for robustness)
+            if [ ! -f "/usr/local/bin/wait-for-it.sh" ]; then
+                echo "Error: wait-for-it.sh not found in /usr/local/bin/. Install step failed?"
+                exit 1
+            fi
+            # Wait command is now standalone
+            /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict || {
+              echo "Database service did not become available within 60 seconds."
+              # Use -f for logs for consistency (ls -al confirmed the path)
+              docker-compose -f ~/project/docker-compose.yml logs db
+              exit 1 # Fail the step if DB wait fails
+            }
+            echo "Database service is available."
       # --- End Wait for Database Service ---
 
-      # --- Wait for Backend Service ---
-      # IMPORTANT: Replace 'backend' with the actual name of your Backend service in docker-compose.yml
-      # IMPORTANT: Replace '5000' with the internal port your Backend container listens on
-      # IMPORTANT: Update 'docker-compose logs backend' if Backend service name is different
+      # --- Wait for Backend Service (Cleaned up) ---
+      # Corrected service name ('backend') and internal port (5000 - based on your Flask code)
+      # Removed curl/chmod as they are now in a separate step
       - run:
           name: Wait for Backend Service to Respond
           command: |
-            # wait-for-it.sh is already downloaded from the previous step
             echo "Waiting for backend service at backend:5000..."
-            # Using -f for consistency
+            # Check if wait-for-it.sh exists
+             if [ ! -f "/usr/local/bin/wait-for-it.sh" ]; then
+                echo "Error: wait-for-it.sh not found in /usr/local/bin/. Install step failed?"
+                exit 1
+            fi
+            # Wait command is now standalone
             /usr/local/bin/wait-for-it.sh backend:5000 -t 60 --strict || {
               echo "Backend service did not become available within 60 seconds."
-              docker-compose -f ~/project/docker-compose.yml logs backend # Using -f here
+              # Use -f for logs for consistency
+              docker-compose -f ~/project/docker-compose.yml logs backend
               exit 1 # Fail the step if backend wait fails
             }
             echo "Backend service is available."
 
       # --- Run Integration Tests (Selenium) ---
-      # IMPORTANT: Ensure APP_URL points to the correct backend service name and internal port
-      # If your backend service is NOT named 'backend' or does NOT listen on port 5000 internally, update below
+      # APP_URL set to http://backend:5000/ based on your Flask code serving UI from backend
       - run:
           name: Run integration tests (Selenium)
           command: |
@@ -124,17 +116,19 @@ jobs:
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
-              -e APP_URL="http://backend:5000/" \ # <-- Verify backend:5000 matches your docker-compose
+              -e APP_URL="http://backend:5000/" \
               food-billing-selenium-tests:latest
 
       # --- Capture Backend Logs (Keep this!) ---
-      # This step will run *after* the tests (pass or fail) and show backend logs.
-      # IMPORTANT: Update 'docker-compose logs backend' if Backend service name is different
+      # Use -f for consistency
       - run:
           name: Capture Backend Logs
-          command: docker-compose -f ~/project/docker-compose.yml logs backend # Using -f here
+          command: docker-compose -f ~/project/docker-compose.yml logs backend
           when: always # Always run this step
 
+      # Optional: Add steps here to store test results or artifacts if your tests generate them
+
+  # ... push and deploy jobs ...
   push:
     executor: docker-executor
     steps:
@@ -192,6 +186,7 @@ jobs:
           command: |
             kubectl rollout restart deployment backend-deployment
             kubectl rollout restart deployment frontend-deployment
+
 
 workflows:
   build_test_push:
