@@ -29,7 +29,8 @@ def get_menu_items():
         db_port = os.getenv("DB_PORT", "5432")
 
         app.logger.info(f"Attempting DB connection: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}")
-
+        db_sslmode = os.getenv("DB_SSLMODE", "prefer") # Get from env, default to prefer
+        app.logger.info(f"DB Connect Params: host={db_host}, dbname={db_name}, user={db_user}, port={db_port}, sslmode={db_sslmode}") # Log it
         conn = psycopg2.connect(
             host=db_host,
             database=db_name,
@@ -37,7 +38,7 @@ def get_menu_items():
             password=db_password,
             port=db_port,
             connect_timeout=10,
-            sslmode='require' # Often required for Azure PostgreSQL
+            sslmode=db_sslmode # Use the dynamic SSL mode
         )
         app.logger.info("DB connection successful!")
 
