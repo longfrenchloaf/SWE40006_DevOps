@@ -10,7 +10,6 @@ services:
       POSTGRES_PASSWORD: admin123
     ports:
       - "5432:5432"
-    # Correct volume mount within the service
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,24 +25,22 @@ services:
       dockerfile: backend/Dockerfile
     image: swe40006_devops-backend:latest
     container_name: billing_backend
-    # Consolidated depends_on with the condition
     depends_on:
-      db: # Must match your DB service name
-        condition: service_healthy # Waits for DB healthcheck to pass
+      db:
+        condition: service_healthy
     environment:
-      DB_HOST: db # This must match the DB service name
+      DB_HOST: db
       DB_NAME: cafe
       DB_USER: admin
       DB_PASSWORD: admin123
-      DB_SSLMODE: disable # Good, disabling SSL for local/CI DB connection
+      DB_SSLMODE: disable
     ports:
       - "5000:5000"
     healthcheck:
-      # Checks if backend is responding on its port
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 20 # <--- Increased retries to 20 (total check time ~200s after start_period)
       start_period: 10s
 
   frontend:
@@ -53,16 +50,10 @@ services:
     image: swe40006_devops-frontend:latest
     container_name: html_frontend
     ports:
-      - "8080:80" # Assuming your frontend serves on port 80 internally
+      - "8080:80"
     depends_on:
-      # Using simple depends_on for frontend as it likely just needs the backend to be running,
-      # not necessarily passing a specific healthcheck unless the frontend itself has one.
-      # If frontend relies on backend APIs, adding backend healthcheck condition here is better.
-      # depends_on:
-      #  backend:
-      #    condition: service_healthy
-      - backend # Simple dependency on backend container existing/running
+      # Keep simple depends_on for now, the backend health is the primary issue
+      - backend
 
-# Single, top-level volumes definition
 volumes:
-  pgdata: # Defining the named volume pgdata
+  pgdata:
