@@ -38,7 +38,7 @@ services:
     ports:
       - "5000:5000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/menu"]
       interval: 10s
       timeout: 5s
       retries: 20 # <--- Increased retries to 20 (total check time ~200s after start_period)
