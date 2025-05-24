@@ -62,13 +62,17 @@ jobs:
       - run:
           name: Wait for Database Service
           command: |
+            # Download wait-for-it.sh - only need to do this once, but having it here is fine if steps are isolated
             curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
             chmod +x /usr/local/bin/wait-for-it.sh
-            echo "Waiting for database service at database_service_name:5432..."
-            # Using -f for consistency, but if ls shows it's at root, you might not need -f for logs
-            /usr/local/bin/wait-for-it.sh database_service_name:5432 -t 60 --strict || {
+
+            # Replace 'database_service_name' with 'db' and '5432' remains the port
+            echo "Waiting for database service at db:5432..."
+            # IMPORTANT: Ensure the -f path ~/project/docker-compose.yml is correct based on your ls -al output
+            /usr/local/bin/wait-for-it.sh db:5432 -t 60 --strict || {
               echo "Database service did not become available within 60 seconds."
-              docker-compose -f ~/project/docker-compose.yml logs database_service_name # Using -f here
+              # Replace 'database_service_name' with 'db' for logs
+              docker-compose -f ~/project/docker-compose.yml logs db # Using -f here
               exit 1 # Fail the step if DB wait fails
             }
             echo "Database service is available."
