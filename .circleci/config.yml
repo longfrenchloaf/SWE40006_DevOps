@@ -70,7 +70,7 @@ jobs:
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
-              -e APP_URL="http://backend:5000/" \ # Verify backend:5000 matches your docker-compose
+              -e APP_URL="http://backend:5000/" \
               food-billing-selenium-tests:latest
 
       # --- Capture Backend Logs (Keep this!) ---
