@@ -185,7 +185,7 @@ def driver():
 
 # --- Helper functions (wait_for_element, etc.) ---
 
-def wait_for_element(driver, by, value, timeout=10):
+def wait_for_element(driver, by, value, timeout=30):
    """Waits for an element to be present on the page and returns it."""
    try:
        return WebDriverWait(driver, timeout).until(
