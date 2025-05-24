@@ -25,3 +25,5 @@ spec:
                 secretKeyRef:
                   name: db-secrets
                   key: DB_USER
+            - name: REACT_APP_API_URL
+              value: "http://backend-service:5000"
