@@ -3,7 +3,7 @@ import psycopg2
 from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder='templates', static_url_path='/static')
+app = Flask(__name__, static_folder='templates/static', static_url_path='/static')
 
 CORS(app)
 
