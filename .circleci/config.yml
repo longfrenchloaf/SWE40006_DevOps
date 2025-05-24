@@ -39,47 +39,34 @@ jobs:
       - run:
           name: Start services with docker-compose
           command: docker-compose up -d
-      # --- New steps for Selenium tests ---
+
+      # --- Updated step for Selenium tests build ---
       - run:
           name: Build Selenium test runner image
-          # Assumes your test Dockerfile is at test/Dockerfile and source is in tests/
-          command: docker build -t food-billing-selenium-tests -f test/Dockerfile tests/
+          # CORRECTED: Point -f flag to tests/Dockerfile
+          command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
+      # --- End of updated build step ---
+
       - run:
           name: Wait for services to be healthy (Optional but Recommended)
-          # IMPORTANT: Services started with -d might not be instantly ready.
-          # Add a command here to wait for your services (especially frontend)
-          # to be accessible before running tests.
-          # A simple sleep is a starting point, but polling a health endpoint is better.
           command: |
             echo "Waiting for services to start..."
-            sleep 30 # Adjust sleep time as needed based on how long your app takes to start
-            # More robust options:
-            # Use a tool like `wait-for-it.sh` or `dockerize` to wait on the frontend port
-            # Example (requires wait-for-it or similar):
-            # curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
-            # chmod +x /usr/local/bin/wait-for-it.sh
-            # wait-for-it.sh frontend:5000 -t 60 # Replace 5000 with actual internal frontend port
+            sleep 30 # Adjust as needed, or use a robust wait tool
 
       - run:
           name: Run integration tests (Selenium)
           command: |
-            # Find the docker-compose network name. Assumes your docker-compose.yml
-            # creates a default network (usually directoryname_default)
+            # Find the docker-compose network name
             DC_NETWORK=$(docker network ls -f name=.*_default --format "{{.Name}}" | head -n 1)
             echo "Running tests on network: $DC_NETWORK"
 
             # Run the test container, connecting it to the docker-compose network.
-            # Use the service name 'frontend' (replace if your frontend service has a different name in docker-compose.yml)
-            # and its internal port (replace 5000 if needed) for the APP_URL.
-            # Resource limits (--shm-size, --cpus, --memory) might need tuning or removal
-            # depending on your CircleCI executor size and requirements.
+            # and its internal port for the APP_URL.
             docker run \
               --rm \
               --network $DC_NETWORK \
               --shm-size="2g" \
-              # --cpus="1.5" # Uncomment if you need CPU limits
-              # --memory="2g" # Uncomment if you need Memory limits
-              -e APP_URL="http://frontend:5000/" \
+              -e APP_URL="http://backend:5000/" \ # Adjust service name and port if needed
               food-billing-selenium-tests:latest
 
       # --- End of new steps for Selenium tests ---
