@@ -27,51 +27,92 @@ jobs:
   test:
     executor: docker-executor
     steps:
-      # ... checkout, attach_workspace, setup_remote_docker, Load Docker images ...
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      # --- NEW DEBUG STEP ---
+      # This step will show you the exact files present in ~/project
+      # after checkout and workspace attachment. LOOK AT THIS OUTPUT CAREFULLY.
+      - run:
+          name: List files in test working directory
+          command: ls -al ~/project
+      # --- END NEW DEBUG STEP ---
+
+      - run:
+          name: Load Docker images (backend/frontend)
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
+
       - run:
           name: Start services with docker-compose
+          # Keeping -f here for now, as the 'stat' error occurred with this path.
+          # The ls -al output will tell us if this path is correct or why it's failing.
           command: docker-compose -f ~/project/docker-compose.yml up -d
 
       - run:
           name: Build Selenium test runner image
           command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
 
-      # --- NEW: Wait for Database Service ---
+      # --- Wait for Database Service ---
+      # IMPORTANT: Replace 'database_service_name' with the actual name of your DB service in docker-compose.yml
+      # IMPORTANT: Replace '5432' with the internal port your DB container listens on
+      # IMPORTANT: Update 'docker-compose logs database_service_name' if DB service name is different
       - run:
           name: Wait for Database Service
           command: |
             curl -sL https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh -o /usr/local/bin/wait-for-it.sh
             chmod +x /usr/local/bin/wait-for-it.sh
-            # Replace 'database_service_name' with the exact name of your DB service in docker-compose.yml
-            # Replace '5432' with the internal port your DB is listening on
             echo "Waiting for database service at database_service_name:5432..."
+            # Using -f for consistency, but if ls shows it's at root, you might not need -f for logs
             /usr/local/bin/wait-for-it.sh database_service_name:5432 -t 60 --strict || {
               echo "Database service did not become available within 60 seconds."
-              # Capture DB logs before failing
-              docker-compose logs database_service_name
+              docker-compose -f ~/project/docker-compose.yml logs database_service_name # Using -f here
               exit 1 # Fail the step if DB wait fails
             }
             echo "Database service is available."
-      # --- END NEW: Wait for Database Service ---
+      # --- End Wait for Database Service ---
 
-      # --- Original: Wait for Backend Service (now runs AFTER DB wait) ---
+      # --- Wait for Backend Service ---
+      # IMPORTANT: Replace 'backend' with the actual name of your Backend service in docker-compose.yml
+      # IMPORTANT: Replace '5000' with the internal port your Backend container listens on
+      # IMPORTANT: Update 'docker-compose logs backend' if Backend service name is different
       - run:
           name: Wait for Backend Service to Respond
           command: |
             # wait-for-it.sh is already downloaded from the previous step
             echo "Waiting for backend service at backend:5000..."
+            # Using -f for consistency
             /usr/local/bin/wait-for-it.sh backend:5000 -t 60 --strict || {
               echo "Backend service did not become available within 60 seconds."
-              docker-compose logs backend
+              docker-compose -f ~/project/docker-compose.yml logs backend # Using -f here
               exit 1 # Fail the step if backend wait fails
             }
             echo "Backend service is available."
 
-      # --- End of new steps for Selenium tests ---
+      # --- Run Integration Tests (Selenium) ---
+      # IMPORTANT: Ensure APP_URL points to the correct backend service name and internal port
+      # If your backend service is NOT named 'backend' or does NOT listen on port 5000 internally, update below
+      - run:
+          name: Run integration tests (Selenium)
+          command: |
+            DC_NETWORK=$(docker network ls -f name=.*_default --format "{{.Name}}" | head -n 1)
+            echo "Running tests on network: $DC_NETWORK"
+            docker run \
+              --rm \
+              --network $DC_NETWORK \
+              --shm-size="2g" \
+              -e APP_URL="http://backend:5000/" \ # <-- Verify backend:5000 matches your docker-compose
+              food-billing-selenium-tests:latest
 
-      # The subsequent jobs (push, deploy) will only run if this test job succeeds.
-      # If the 'docker run' command for the tests exits with a non-zero status,
-      # this step (and thus the job) will fail.
+      # --- Capture Backend Logs (Keep this!) ---
+      # This step will run *after* the tests (pass or fail) and show backend logs.
+      # IMPORTANT: Update 'docker-compose logs backend' if Backend service name is different
+      - run:
+          name: Capture Backend Logs
+          command: docker-compose -f ~/project/docker-compose.yml logs backend # Using -f here
+          when: always # Always run this step
 
   push:
     executor: docker-executor
