@@ -18,8 +18,6 @@ services:
       timeout: 3s # Timeout after 3 seconds if check doesn't respond
       retries: 10 # Try 10 times before considering unhealthy (50 seconds total check time)
       start_period: 10s # Give the container 10 seconds to start before first check
-volumes:
-  pgdata: # Ensure this volume is defined at the top level if it wasn't already
 
   backend:
     build:
