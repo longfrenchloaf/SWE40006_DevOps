@@ -29,12 +29,12 @@ services:
       DB_SSLMODE: disable  
     ports:
       - "5000:5000"
-
+      
   frontend:
     build:
-      context: ./templates
-      dockerfile: Dockerfile
-    image: swe40006_devops-frontend:latest     
+      context: ./templates         # Build context remains SWE40006_DevOps/templates
+      dockerfile: ./static/Dockerfile # <-- Correct path relative to the context
+    image: swe40006_devops-frontend:latest
     container_name: html_frontend
     ports:
       - "8080:80"
