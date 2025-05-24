@@ -24,6 +24,24 @@ jobs:
             - backend.tar
             - frontend.tar
 
+  test:
+    executor: docker-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/project
+      - setup_remote_docker
+      - run:
+          name: Load Docker images
+          command: |
+            docker load -i ~/project/backend.tar
+            docker load -i ~/project/frontend.tar
+      - run:
+          name: Start services with docker-compose
+          command: docker-compose up -d
+      - run:
+          name: Run integration tests
+          command: echo "Run your Selenium or API tests here"
 
   push:
     executor: docker-executor
@@ -87,9 +105,12 @@ workflows:
   build_test_push:
     jobs:
       - build
-      - push:
+      - test:
           requires:
             - build
+      - push:
+          requires:
+            - test
       - deploy:
           requires:
             - push
