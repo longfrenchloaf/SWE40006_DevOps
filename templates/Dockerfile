@@ -1,16 +1,20 @@
-# templates/Dockerfile
+# templates/Dockerfile  <-- This file is located at your_project_root/templates/Dockerfile
 FROM nginx:alpine
 
 # Remove the default Nginx config file
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy your custom Nginx config into the conf.d directory
+# Copy your custom config file from the build context (templates/)
+# Assumes nginx-proxy.conf is in the SAME directory as this Dockerfile
 COPY nginx-proxy.conf /etc/nginx/conf.d/
 
-# Copy your frontend static assets into the Nginx web root
-# Make sure the path '.' is correct for where your static files are relative to the Dockerfile
-COPY . /usr/share/nginx/html/
+# Copy ONLY the static assets (html files and the static directory)
+# Explicitly list the files and the static directory from the build context (templates/)
+COPY index.html /usr/share/nginx/html/
+COPY menu.html /usr/share/nginx/html/
+COPY cart.html /usr/share/nginx/html/
+COPY static/ /usr/share/nginx/html/static/ # Copy the static directory recursively
 
-# EXPOSE 80 # Optional, but good practice
+EXPOSE 80
 
 # CMD ["nginx", "-g", "daemon off;"] # Default for nginx:alpine, often not needed to specify
