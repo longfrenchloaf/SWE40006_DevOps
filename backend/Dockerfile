@@ -6,6 +6,8 @@ WORKDIR /app
 # COPY backend/entrypoint.sh /entrypoint.sh
 # RUN chmod +x /entrypoint.sh
 
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Copy requirements and install dependencies
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt # Added --no-cache-dir
