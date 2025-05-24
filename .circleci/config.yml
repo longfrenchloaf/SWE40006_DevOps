@@ -41,6 +41,10 @@ jobs:
       - run:
           name: List files in test working directory
           command: ls -al ~/project
+      
+      - run:
+          name: Build Selenium test runner image
+          command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
 
       - run:
           name: Load Docker images (backend/frontend)
