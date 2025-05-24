@@ -43,6 +43,9 @@ jobs:
           name: Run integration tests
           command: echo "Run your Selenium or API tests here"
 
+jobs:
+  # ... other jobs (build, test, deploy) ...
+
   push:
     executor: docker-executor
     steps:
@@ -50,8 +53,19 @@ jobs:
       - attach_workspace:
           at: ~/project
       - setup_remote_docker
+
+      # --- ADD THIS NEW DEBUG STEP ---
       - run:
-          name: Load Docker images
+          name: Debug ACR_NAME variable
+          command: |
+            echo "--- Debugging ACR_NAME ---"
+            echo "Value of ACR_NAME: -->${ACR_NAME}<--"
+            echo "Using full registry name: -->${ACR_NAME}.azurecr.io<--"
+            echo "--------------------------"
+      # -------------------------------
+
+      - run:
+          name: Load Docker images and Tag # Renamed slightly for clarity
           command: |
             docker load -i ~/project/backend.tar
             docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
