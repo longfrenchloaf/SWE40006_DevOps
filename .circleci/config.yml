@@ -15,6 +15,9 @@ jobs:
       - run:
           name: Build Docker Compose services
           command: |
+            echo "Listing contents of ./templates/:"
+            ls -la ./templates/
+            echo "---"
             docker-compose build
             docker save swe40006_devops-backend:latest -o backend.tar
             docker save swe40006_devops-frontend:latest -o frontend.tar
