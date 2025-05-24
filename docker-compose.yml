@@ -15,7 +15,7 @@ services:
 
   backend:
     build:
-      context: .          # Root of project, so templates and backend are visible
+      context: .         
       dockerfile: backend/Dockerfile
     image: swe40006_devops-backend:latest      
     container_name: billing_backend
