@@ -1,3 +1,4 @@
+# k8s/frontend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,8 +6,9 @@ metadata:
 spec:
   selector:
     app: frontend
+  type: NodePort   # <--- Changed from LoadBalancer to NodePort
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: LoadBalancer
+      port: 80         # The internal cluster IP port (used for communication within the cluster)
+      targetPort: 80   # The port your frontend container is listening on
+      # nodePort: 30000-32767 # Optional: Kubernetes will assign a port in this range if you omit it

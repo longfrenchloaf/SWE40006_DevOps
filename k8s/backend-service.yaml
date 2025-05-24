@@ -1,3 +1,4 @@
+# k8s/backend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,8 +6,9 @@ metadata:
 spec:
   selector:
     app: backend
-  type: LoadBalancer
+  type: NodePort   # <--- Changed from LoadBalancer to NodePort
   ports:
     - protocol: TCP
-      port: 5000
-      targetPort: 5000
+      port: 5000        # The internal cluster IP port (used for communication within the cluster)
+      targetPort: 5000  # The port your backend container is listening on
+      # nodePort: 30000-32767 # Optional: Kubernetes will assign a port in this range if you omit it
