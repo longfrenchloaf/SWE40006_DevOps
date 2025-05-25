@@ -56,7 +56,7 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      # Keep simple depends_on for now, the backend health is the primary issue
+      #Keep simple depends_on for now, the backend health is the primary issue
       - backend
 
 volumes:
