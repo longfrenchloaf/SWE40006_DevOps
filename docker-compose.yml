@@ -4,6 +4,7 @@ services:
   db:
     build:
       context: . # Build context is the root of the projects
+      dockerfile: db.Dockerfile # Points to your new Dockerfile
     container_name: my_postgres
     environment:
       POSTGRES_DB: cafe
