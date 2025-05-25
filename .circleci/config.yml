@@ -61,7 +61,58 @@ jobs:
           # that the job depends on are healthy.
           command: docker-compose -f ~/project/docker-compose.yml up -d --wait
       # --- End Start and WAIT step ---
+      - run:
+          name: Ensure Clean DB Volume for Init
+          # Use -v to remove volumes, --remove-orphans for safety
+          # || true prevents the step from failing if containers/volumes don't exist yet
+          # IMPORTANT: Verify this path matches your docker-compose file location
+          command: docker-compose -f ~/project/docker-compose.yml down -v --remove-orphans || true
 
+
+      - run:
+          name: Start services and wait for healthchecks
+          command: docker-compose -f ~/project/docker-compose.yml up -d --wait
+
+      # --- Step to Verify Database (Modified for Debugging Mount) ---
+      - run:
+          name: Verify DB Init Mount and Schema
+          command: |
+            #!/bin/bash -eo pipefail
+            echo "--- Verifying Database Setup ---"
+
+            echo "Listing contents of init directory INSIDE the DB container:"
+            # Use docker-compose exec to list files in the mounted directory inside the 'db' container
+            docker-compose -f ~/project/docker-compose.yml exec db ls -al /docker-entrypoint-initdb.d/ || {
+              echo "Error: Could not list init directory contents inside container."
+              echo "This likely means the volume mount failed or the source directory didn't exist/was empty."
+              exit 1 # Fail the CI step if ls fails
+            }
+            echo "--- End Listing Contents ---"
+
+            # Now proceed with schema check (optional, but good)
+            echo "Checking if 'menu_items' table exists..."
+            docker-compose -f ~/project/docker-compose.yml exec db \
+              psql -U admin -d cafe -c '\d menu_items' || {
+                echo "Error: 'menu_items' table does NOT exist AFTER init should have run!"
+                echo "Check the logs above for errors during script execution (if any scripts were listed)."
+                exit 1 # Fail the CI step if the table is not found
+              }
+            echo "'menu_items' table found."
+
+            # Optional: Check row count as before
+            echo "Checking row count..."
+            ROW_COUNT=$(docker-compose -f ~/project/docker-compose.yml exec db \
+              psql -U admin -d cafe -tA -c 'SELECT COUNT(*) FROM menu_items;') || {
+                echo "Error: Failed to get row count!"
+                exit 1
+              }
+            echo "Row count: $ROW_COUNT"
+            EXPECTED_ROWS=8 # Adjust if needed
+            if [[ "$ROW_COUNT" -lt "$EXPECTED_ROWS" ]]; then
+              echo "Warning: Expected at least $EXPECTED_ROWS rows, but found only $ROW_COUNT."
+            fi
+
+            echo "--- Database Verification Complete ---"
       # --- Run Integration Tests (Selenium) ---
       # Now that services are healthy, tests can run
       # IMPORTANT: Increase the Selenium WebDriverWait timeout in your test code if needed
@@ -69,52 +120,6 @@ jobs:
           name: Start services and wait for healthchecks
           command: docker-compose -f ~/project/docker-compose.yml up -d --wait
 
-      # --- NEW Step to Verify Database ---
-      - run:
-          name: Verify Database Schema and Data
-          command: |
-            #!/bin/bash -eo pipefail
-            echo "--- Verifying Database Setup ---"
-
-            # Check if the menu_items table exists using psql inside the container
-            echo "Checking if 'menu_items' table exists in 'cafe' database..."
-            # Use docker-compose exec to run commands inside the 'db' service container
-            # Connect as 'admin' user to 'cafe' database
-            # -c '\d menu_items' lists details about the table
-            docker-compose -f ~/project/docker-compose.yml exec db \
-              psql -U admin -d cafe -c '\d menu_items' || {
-                echo "Error: 'menu_items' table does NOT exist! Database initialization script failed."
-                exit 1 # Fail the CI step if the table is not found
-              }
-            echo "'menu_items' table found."
-
-            # Check if data was inserted by counting rows
-            echo "Checking row count in 'menu_items' table..."
-            # -tA flags format the output to give just the value
-            ROW_COUNT=$(docker-compose -f ~/project/docker-compose.yml exec db \
-              psql -U admin -d cafe -tA -c 'SELECT COUNT(*) FROM menu_items;') || {
-                echo "Error: Failed to get row count from 'menu_items'!"
-                exit 1 # Fail the CI step if the count query fails
-              }
-            echo "Row count: $ROW_COUNT"
-
-            # Optional: Add an assertion for the expected number of rows
-            EXPECTED_ROWS=8 # Adjust based on how many INSERTs are in your SQL file
-            if [[ "$ROW_COUNT" -lt "$EXPECTED_ROWS" ]]; then
-              echo "Warning: Expected at least $EXPECTED_ROWS rows, but found only $ROW_COUNT."
-              # You might want to exit 1 here instead of just warning if data is essential
-              # exit 1
-            fi
-
-            # Optional: Display some data (useful for debugging, can be verbose)
-            # echo "Sample data:"
-            # docker-compose -f ~/project/docker-compose.yml exec db \
-            #   psql -U admin -d cafe -c 'SELECT id, name, price FROM menu_items LIMIT 5;'
-
-
-            echo "--- Database Verification Complete ---"
-      # --- END NEW Step ---
-      
       - run:
           name: Run integration tests (Selenium)
           command: |
