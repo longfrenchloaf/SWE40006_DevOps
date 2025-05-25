@@ -72,39 +72,38 @@ jobs:
           name: Verify DB Init Mount and Schema
           command: |
             #!/bin/bash -eo pipefail
-            echo "--- Verifying Database Setup ---"
+            echo "--- $(date) - Verifying Database Setup ---"
 
-            # Listing inside container is already done above, so remove this block:
-            # echo "Listing contents of init directory INSIDE the DB container:"
-            # docker-compose -f ~/project/docker-compose.yml exec db ls -al /docker-entrypoint-initdb.d/ || { ... }
-            # echo "--- End Listing Contents ---"
-
-
-            echo "Checking if 'menu_items' table exists..."
+            echo "$(date) - Checking if 'menu_items' table exists in 'cafe' database..."
             # Use docker-compose exec to list files in the mounted directory inside the 'db' container
+            # Add -P pager=off to prevent psql from waiting for input if it thinks it's interactive
             docker-compose -f ~/project/docker-compose.yml exec db \
-              psql -U admin -d cafe -c '\d menu_items' || {
-                echo "Error: 'menu_items' table does NOT exist AFTER init should have run!"
-                echo "Check the 'List local DB Init Directory Contents' step output above."
+              psql -U admin -d cafe -P pager=off -c '\d menu_items' || {
+                echo "$(date) - Error: 'menu_items' table does NOT exist! Database initialization script failed."
+                echo "Check the database logs for errors during script execution."
                 exit 1 # Fail the CI step if the table is not found
               }
-            echo "'menu_items' table found."
+            echo "$(date) - 'menu_items' table found."
 
-            # Optional: Check row count as before
-            # ... (keep row count check if you want) ...
+            # Now proceed with schema check (optional, but good)
+            echo "$(date) - Checking row count in 'menu_items' table..."
+            # Use docker-compose exec to list files in the mounted directory inside the 'db' container
             ROW_COUNT=$(docker-compose -f ~/project/docker-compose.yml exec db \
               psql -U admin -d cafe -tA -c 'SELECT COUNT(*) FROM menu_items;') || {
-                echo "Error: Failed to get row count!"
-                exit 1
+                echo "$(date) - Error: Failed to get row count from 'menu_items'!"
+                exit 1 # Fail the CI step if the count query fails
               }
-            echo "Row count: $ROW_COUNT"
-            EXPECTED_ROWS=8 # Adjust if needed
+            echo "$(date) - Row count: $ROW_COUNT"
+
+            # Optional: Add an assertion for the expected number of rows
+            EXPECTED_ROWS=8 # Adjust based on how many INSERTs are in your SQL file
             if [[ "$ROW_COUNT" -lt "$EXPECTED_ROWS" ]]; then
-              echo "Warning: Expected at least $EXPECTED_ROWS rows, but found only $ROW_COUNT."
+              echo "$(date) - Warning: Expected at least $EXPECTED_ROWS rows, but found only $ROW_COUNT."
+              # You might want to exit 1 here instead of just warning if data is essential
+              # exit 1
             fi
 
-
-            echo "--- Database Verification Complete ---"
+            echo "--- $(date) - Database Verification Complete ---"
       # --- END Verify DB Init Mount and Schema Step ---
 
       - run:
