@@ -12,10 +12,15 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
+      # ls -al debug step from before is helpful, keep it for now
+      - run:
+          name: List files in build working directory
+          command: ls -al ~/project
       - run:
           name: Build Docker Compose services
+          # ls -al confirmed docker-compose.yml is at root, so -f is optional but harmless
           command: |
-            docker-compose build
+            docker-compose -f ~/project/docker-compose.yml build
             docker save swe40006_devops-backend:latest -o backend.tar
             docker save swe40006_devops-frontend:latest -o frontend.tar
       - persist_to_workspace:
@@ -31,18 +36,103 @@ jobs:
       - attach_workspace:
           at: ~/project
       - setup_remote_docker
+
+      # ls -al debug step - keep or remove as needed
       - run:
-          name: Load Docker images
+          name: List files in test working directory
+          command: ls -al ~/project
+      
+      - run:
+          name: Build Selenium test runner image
+          command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
+
+      - run:
+          name: Load Docker images (backend/frontend)
           command: |
             docker load -i ~/project/backend.tar
             docker load -i ~/project/frontend.tar
-      - run:
-          name: Start services with docker-compose
-          command: docker-compose up -d
-      - run:
-          name: Run integration tests
-          command: echo "Run your Selenium or API tests here"
 
+      # Add this step BEFORE docker-compose up
+      - run:
+          name: List local DB Init Directory Contents
+          # List contents of the directory relative to the working_directory (~/project)
+          command: ls -al ~/project/docker-entrypoint-initdb.d/ || echo "Directory not found or empty locally."
+
+      - run:
+          name: Ensure Clean DB Volume for Init
+          command: docker-compose -f ~/project/docker-compose.yml down -v --remove-orphans || true
+
+      - run:
+          name: Start services and wait for healthchecks
+          # The docker-compose file path is correct based on ls -al ~/project showing it
+          command: docker-compose -f ~/project/docker-compose.yml up -d --wait
+
+      # Keep the Verify DB Init Mount step, but remove the ls -al from *inside* its script
+      - run:
+          name: Verify DB Init Mount and Schema
+          command: |
+            #!/bin/bash -eo pipefail
+            echo "--- $(date) - Verifying Database Setup ---"
+
+            echo "$(date) - Checking if 'menu_items' table exists in 'cafe' database..."
+            # Use docker-compose exec to list files in the mounted directory inside the 'db' container
+            # Add -P pager=off to prevent psql from waiting for input if it thinks it's interactive
+            docker-compose -f ~/project/docker-compose.yml exec db \
+              psql -U admin -d cafe -P pager=off -c '\d menu_items' || {
+                echo "$(date) - Error: 'menu_items' table does NOT exist! Database initialization script failed."
+                echo "Check the database logs for errors during script execution."
+                exit 1 # Fail the CI step if the table is not found
+              }
+            echo "$(date) - 'menu_items' table found."
+
+            # Now proceed with schema check (optional, but good)
+            echo "$(date) - Checking row count in 'menu_items' table..."
+            # Use docker-compose exec to list files in the mounted directory inside the 'db' container
+            ROW_COUNT=$(docker-compose -f ~/project/docker-compose.yml exec db \
+              psql -U admin -d cafe -tA -c 'SELECT COUNT(*) FROM menu_items;') || {
+                echo "$(date) - Error: Failed to get row count from 'menu_items'!"
+                exit 1 # Fail the CI step if the count query fails
+              }
+            echo "$(date) - Row count: $ROW_COUNT"
+
+            # Optional: Add an assertion for the expected number of rows
+            EXPECTED_ROWS=8 # Adjust based on how many INSERTs are in your SQL file
+            if [[ "$ROW_COUNT" -lt "$EXPECTED_ROWS" ]]; then
+              echo "$(date) - Warning: Expected at least $EXPECTED_ROWS rows, but found only $ROW_COUNT."
+              # You might want to exit 1 here instead of just warning if data is essential
+              # exit 1
+            fi
+
+            echo "--- $(date) - Database Verification Complete ---"
+      # --- END Verify DB Init Mount and Schema Step ---
+
+      - run:
+          name: Run integration tests (Selenium)
+          command: |
+            DC_NETWORK=$(docker network ls -f name=.*_default --format "{{.Name}}" | head -n 1)
+            echo "Running tests on network: $DC_NETWORK"
+            docker run \
+              --rm \
+              --network $DC_NETWORK \
+              --shm-size="2g" \
+              -e APP_URL="http://backend:5000/" \
+              food-billing-selenium-tests:latest
+
+      # --- Capture Backend Logs (Keep this!) ---
+      - run:
+          name: Capture Backend Logs
+          command: docker-compose -f ~/project/docker-compose.yml logs backend
+          when: always # Always run this step
+
+      # Optional: Capture DB Logs on failure too
+      - run:
+          name: Capture DB Logs
+          command: docker-compose -f ~/project/docker-compose.yml logs db
+          when: always # Always run this step
+
+      # Optional: Add steps here to store test results or artifacts if your tests generate them
+
+  # ... push and deploy jobs ...
   push:
     executor: docker-executor
     steps:
@@ -73,15 +163,15 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Azure CLI
+          name: Install Azure CLI and Kubectl
           command: |
             curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
             KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
-              echo "Installing kubectl version $KUBECTL_VERSION"
-              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-              chmod +x kubectl
-              sudo mv kubectl /usr/local/bin/kubectl
+            echo "Installing kubectl version $KUBECTL_VERSION"
+            curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/kubectl
       - run:
           name: Login to Azure and set AKS credentials
           command: |
@@ -100,6 +190,7 @@ jobs:
           command: |
             kubectl rollout restart deployment backend-deployment
             kubectl rollout restart deployment frontend-deployment
+
 
 workflows:
   build_test_push:
