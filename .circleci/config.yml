@@ -51,15 +51,7 @@ jobs:
           command: |
             docker load -i ~/project/backend.tar
             docker load -i ~/project/frontend.tar
-
-      # --- Start and WAIT for services using Healthchecks ---
-      # IMPORTANT: Ensure docker-compose.yml has healthchecks defined for 'db' and 'backend'
-      # IMPORTANT: Ensure backend service in docker-compose.yml has depends_on: db
-      - run:
-          name: Start services and wait for healthchecks
-          # This command will block until all services with healthchecks
-          # that the job depends on are healthy.
-          command: docker-compose -f ~/project/docker-compose.yml up -d --wait
+            
       # --- End Start and WAIT step ---
       - run:
           name: Ensure Clean DB Volume for Init
