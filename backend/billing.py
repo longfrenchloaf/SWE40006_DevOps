@@ -95,5 +95,5 @@ def billing():
     return jsonify({"total": round(total, 2)})
 
 if __name__ == "__main__":
-    app.logger.info("Starting Flask development server.") # Keep this log
+    app.logger.info("Starting Flask development server.") #Keep this log
     app.run(host="0.0.0.0", port=5000, debug=True)
