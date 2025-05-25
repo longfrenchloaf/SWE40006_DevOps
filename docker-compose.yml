@@ -47,7 +47,5 @@ services:
       retries: 20 # <--- Increased retries to 20 (total check time ~200s after start_period)
       start_period: 10s
 
-  
-
 volumes:
   pgdata:

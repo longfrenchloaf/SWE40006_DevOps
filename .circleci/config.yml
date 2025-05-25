@@ -22,7 +22,6 @@ jobs:
           command: |
             docker-compose -f ~/project/docker-compose.yml build
             docker save swe40006_devops-backend:latest -o backend.tar
-           
       - persist_to_workspace:
           root: ~/project
           paths:
@@ -36,37 +35,29 @@ jobs:
       - attach_workspace:
           at: ~/project
       - setup_remote_docker
-
       # ls -al debug step - keep or remove as needed
       - run:
           name: List files in test working directory
           command: ls -al ~/project
-      
       - run:
           name: Build Selenium test runner image
           command: docker build -t food-billing-selenium-tests -f tests/Dockerfile tests/
-
       - run:
-          name: Load Docker images (backend/frontend)
+          name: Load Docker images (backend)
           command: |
             docker load -i ~/project/backend.tar
-            
-
       # Add this step BEFORE docker-compose up
       - run:
           name: List local DB Init Directory Contents
           # List contents of the directory relative to the working_directory (~/project)
           command: ls -al ~/project/docker-entrypoint-initdb.d/ || echo "Directory not found or empty locally."
-
       - run:
           name: Ensure Clean DB Volume for Init
           command: docker-compose -f ~/project/docker-compose.yml down -v --remove-orphans || true
-
       - run:
           name: Start services and wait for healthchecks
           # The docker-compose file path is correct based on ls -al ~/project showing it
           command: docker-compose -f ~/project/docker-compose.yml up -d --wait
-
       # Keep the Verify DB Init Mount step, but remove the ls -al from *inside* its script
       - run:
           name: Verify DB Init Mount and Schema
@@ -105,7 +96,6 @@ jobs:
 
             echo "--- $(date) - Database Verification Complete ---"
       # --- END Verify DB Init Mount and Schema Step ---
-
       - run:
           name: Run integration tests (Selenium)
           command: |
@@ -117,22 +107,17 @@ jobs:
               --shm-size="2g" \
               -e APP_URL="http://backend:5000/" \
               food-billing-selenium-tests:latest
-
       # --- Capture Backend Logs (Keep this!) ---
       - run:
           name: Capture Backend Logs
           command: docker-compose -f ~/project/docker-compose.yml logs backend
           when: always # Always run this step
-
       # Optional: Capture DB Logs on failure too
       - run:
           name: Capture DB Logs
           command: docker-compose -f ~/project/docker-compose.yml logs db
           when: always # Always run this step
 
-      # Optional: Add steps here to store test results or artifacts if your tests generate them
-
-  # ... push and deploy jobs ...
   push:
     executor: docker-executor
     steps:
@@ -144,15 +129,12 @@ jobs:
           name: Load Docker images
           command: |
             docker load -i ~/project/backend.tar
-            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
-
-           
+            docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest        
       - run:
           name: Push backend to ACR
           command: |
             echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
             docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
-      
 
   deploy:
     executor: docker-executor
@@ -174,17 +156,15 @@ jobs:
             az login --service-principal -u $AZURE_SP_APP_ID -p $AZURE_SP_CLIENT_SECRET --tenant $AZURE_TENANT_ID
             az aks get-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$AKS_CLUSTER_NAME" --overwrite-existing
       - run:
-          name: Deploy backend and frontend to AKS
+          name: Deploy backend to AKS
           command: |
             kubectl apply -f k8s/db-secret.yaml
             kubectl apply -f k8s/backend-deployment.yaml
             kubectl apply -f k8s/backend-service.yaml
-            
       - run:
           name: Restart Deployments to Pick Up Changes
           command: |
             kubectl rollout restart deployment backend-deployment
-            
 
 workflows:
   build_test_push:
