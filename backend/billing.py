@@ -47,7 +47,7 @@ def get_menu_items():
         app.logger.info("DB connection successful!")
 
         cur = conn.cursor()
-        cur.execute("SELECT item_id, name, price, image FROM menu_items;")
+        cur.execute("SELECT id, name, price, image FROM menu_items;")
         rows = cur.fetchall()
         cur.close()
         conn.close()
