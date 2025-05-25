@@ -47,17 +47,7 @@ services:
       retries: 20 # <--- Increased retries to 20 (total check time ~200s after start_period)
       start_period: 10s
 
-  frontend:
-    build:
-      context: ./templates
-      dockerfile: Dockerfile
-    image: swe40006_devops-frontend:latest
-    container_name: html_frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      # Keep simple depends_on for now, the backend health is the primary issue
-      - backend
+  
 
 volumes:
   pgdata:

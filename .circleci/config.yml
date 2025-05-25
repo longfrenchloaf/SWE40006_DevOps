@@ -22,12 +22,12 @@ jobs:
           command: |
             docker-compose -f ~/project/docker-compose.yml build
             docker save swe40006_devops-backend:latest -o backend.tar
-            docker save swe40006_devops-frontend:latest -o frontend.tar
+           
       - persist_to_workspace:
           root: ~/project
           paths:
             - backend.tar
-            - frontend.tar
+            
 
   test:
     executor: docker-executor
@@ -50,7 +50,7 @@ jobs:
           name: Load Docker images (backend/frontend)
           command: |
             docker load -i ~/project/backend.tar
-            docker load -i ~/project/frontend.tar
+            
 
       # Add this step BEFORE docker-compose up
       - run:
@@ -146,17 +146,13 @@ jobs:
             docker load -i ~/project/backend.tar
             docker tag swe40006_devops-backend:latest $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
 
-            docker load -i ~/project/frontend.tar
-            docker tag swe40006_devops-frontend:latest $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+           
       - run:
           name: Push backend to ACR
           command: |
             echo $AZURE_PASSWORD | docker login $ACR_NAME.azurecr.io -u $AZURE_USERNAME --password-stdin
             docker push $ACR_NAME.azurecr.io/swe40006_devops-backend:latest
-      - run:
-          name: Push frontend to ACR
-          command: |
-            docker push $ACR_NAME.azurecr.io/swe40006_devops-frontend:latest
+      
 
   deploy:
     executor: docker-executor
@@ -183,14 +179,12 @@ jobs:
             kubectl apply -f k8s/db-secret.yaml
             kubectl apply -f k8s/backend-deployment.yaml
             kubectl apply -f k8s/backend-service.yaml
-            kubectl apply -f k8s/frontend-deployment.yaml
-            kubectl apply -f k8s/frontend-service.yaml
+            
       - run:
           name: Restart Deployments to Pick Up Changes
           command: |
             kubectl rollout restart deployment backend-deployment
-            kubectl rollout restart deployment frontend-deployment
-
+            
 
 workflows:
   build_test_push:
