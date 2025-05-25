@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15
+    build:
+      context: . # Build context is the root of the projects
+      dockerfile: db.Dockerfile # Points to your new Dockerfile
     container_name: my_postgres
     environment:
       POSTGRES_DB: cafe
@@ -12,38 +14,49 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      #- /home/circleci/project/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB} -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: swe40006_devops-backend:latest      
+      context: .
+      dockerfile: backend/Dockerfile
+    image: swe40006_devops-backend:latest
     container_name: billing_backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_NAME: cafe
       DB_USER: admin
       DB_PASSWORD: admin123
-      DB_SSLMODE: disable  
-    volumes:
-      - ./backend:/app
-      # optionally mount templates for dev, e.g.:
-      - ./templates:/app/templates:ro
+      DB_SSLMODE: disable
+      DB_PORT: 5432
     ports:
       - "5000:5000"
-    command: ["python", "billing.py"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/menu"]
+      interval: 10s
+      timeout: 5s
+      retries: 20 # <--- Increased retries to 20 (total check time ~200s after start_period)
+      start_period: 10s
 
   frontend:
     build:
       context: ./templates
       dockerfile: Dockerfile
-    image: swe40006_devops-frontend:latest     
+    image: swe40006_devops-frontend:latest
     container_name: html_frontend
     ports:
       - "8080:80"
     depends_on:
+      # Keep simple depends_on for now, the backend health is the primary issue
       - backend
 
 volumes:
