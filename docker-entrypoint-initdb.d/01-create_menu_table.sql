@@ -14,7 +14,3 @@ INSERT INTO menu_items (name, price, image) VALUES
 ('Butter Croissant', 5.00, 'Croissant.jpg'),
 ('Blueberry Muffin', 6.50, 'BlueberryMuffin.jpg'),
 ('Iced Peach Tea', 5.50, 'IcedPeachTea.jpg');
-
-
-
-
