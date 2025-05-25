@@ -167,15 +167,23 @@ jobs:
             kubectl rollout restart deployment backend-deployment
 
 workflows:
-  build_test_push:
+  build_test_push_deploy:
     jobs:
-      - build
-      - test:
+      - build # Runs on all branches
+      - test: # Runs on all branches
           requires:
             - build
-      - push:
+      - push: # Runs ONLY on 'main' branch
           requires:
             - test
-      - deploy:
+          filters:
+            branches:
+              only:
+                - main
+      - deploy: # Runs ONLY on 'main' branch (and only if 'push' for main succeeded)
           requires:
-            - push
+            - push # This 'push' job now also runs only on main
+          filters:
+            branches:
+              only:
+                - main
