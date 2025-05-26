@@ -581,3 +581,34 @@ button[type="submit"]:active {
         z-index: 99999 !important;
     }
 }
+
+/* --- Added for Welcome Message Banner --- */
+.welcome-banner {
+    text-align: center; /* Center the text */
+    background-color: #ffecb3; /* Use a light yellow background */
+    color: #76323F; /* Use the deep burgundy text color */
+    padding: 15px; /* Add some internal spacing */
+    margin-top: 20px; /* Space above the banner */
+    margin-bottom: 20px; /* Space below the banner */
+    /* Make it slightly narrower than the full page, maybe align with the container */
+    max-width: 960px; /* Match container max-width */
+    width: 95%; /* Match container width */
+    margin-left: auto; /* Center the block element */
+    margin-right: auto; /* Center the block element */
+    border: 1px solid #C09F80; /* Add a border with the muted gold color */
+    border-radius: 8px; /* Rounded corners */
+    font-weight: bold; /* Make the text bold */
+    font-size: 1.1em; /* Slightly larger text */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+}
+
+/* Optional: Adjust spacing for responsiveness if needed */
+@media (max-width: 768px) {
+    .welcome-banner {
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding: 10px;
+        font-size: 1em;
+    }
+}
+/* --- End Welcome Message Banner Styles --- */
