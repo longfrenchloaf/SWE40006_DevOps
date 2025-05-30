@@ -582,6 +582,7 @@ button[type="submit"]:active {
     }
 }
 
+/*
 /* --- Added for Welcome Message Banner --- */
 .welcome-banner {
     text-align: center; /* Center the text */
@@ -612,3 +613,4 @@ button[type="submit"]:active {
     }
 }
 /* --- End Welcome Message Banner Styles --- */
+*/
